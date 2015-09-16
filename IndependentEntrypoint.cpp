@@ -21,25 +21,8 @@
 #include <cstdlib>
 #include <vector>
 #include <algorithm>
+#include "PixelSearchByTriplet.h"
 
-
-/**
- * execute entrypoint of algorithm
- * Same signature as offloaded gaudi-algorithm
- * 
- * @param output 
- * @param input  
- */
-extern int independent_execute(
-    const std::vector<std::vector<unsigned char> >& input,
-    std::vector<std::vector<unsigned char> >& output);
-
-/**
- * Post execution entrypoint
- * @param output 
- */
-extern void independent_post_execute(
-    const std::vector<std::vector<unsigned char> >& output);
 
 
 void printUsage(char* argv[]){
@@ -62,8 +45,8 @@ public:
 
 /**
  * Checks file existence
- * @param  name 
- * @return      
+ * @param  name
+ * @return
  */
 bool fileExists (const std::string& name) {
     if (FILE *file = fopen(name.c_str(), "r")) {
@@ -71,7 +54,7 @@ bool fileExists (const std::string& name) {
         return true;
     } else {
         return false;
-    }   
+    }
 }
 
 /**
@@ -124,14 +107,14 @@ void readFileIntoVector(std::string filename, std::vector<unsigned char> & outpu
 /**
  * This is if the function is called on its own
  * (ie. non-gaudi execution)
- * 
+ *
  * In that case, the file input is expected.
  * As a convention, multiple files would be specified
  * with comma-separated values
- * 
+ *
  * @param  argc
  * @param  argv
- * @return     
+ * @return
  */
 int main(int argc, char *argv[])
 {
@@ -145,7 +128,7 @@ int main(int argc, char *argv[])
         printUsage(argv);
         return 0;
     }
-    
+
     filename = std::string(argv[1]);
 
     // Check how many files were specified and
@@ -185,7 +168,7 @@ int main(int argc, char *argv[])
 
     // Call offloaded algo
     std::vector<std::vector<unsigned char> > output;
-    independent_execute(input, output);
+    independent_execute(input, output, ExecMode::OpenCl);
 
     // Post execution entrypoint
     independent_post_execute(output);

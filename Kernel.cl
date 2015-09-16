@@ -4,13 +4,13 @@
  * @details In case the tolerances constraints are met,
  *          returns the chi2 weight of the track. Otherwise,
  *          returns MAX_FLOAT.
- * 
- * @param tx 
- * @param ty 
- * @param h0 
+ *
+ * @param tx
+ * @param ty
+ * @param h0
  * @param h1_z
- * @param h2 
- * @return 
+ * @param h2
+ * @return
  */
 float fitHitToTrack(const float tx, const float ty, const struct Hit* h0, const float h1_z, const struct Hit* h2) {
   // tolerances
@@ -36,16 +36,16 @@ float fitHitToTrack(const float tx, const float ty, const struct Hit* h0, const 
 
 /**
  * @brief Fills dev_hit_candidates.
- * 
- * @param hit_candidates    
- * @param hit_h2_candidates 
- * @param number_of_sensors 
- * @param sensor_hitStarts  
- * @param sensor_hitNums    
- * @param hit_Xs            
- * @param hit_Ys            
- * @param hit_Zs            
- * @param sensor_Zs         
+ *
+ * @param hit_candidates
+ * @param hit_h2_candidates
+ * @param number_of_sensors
+ * @param sensor_hitStarts
+ * @param sensor_hitNums
+ * @param hit_Xs
+ * @param hit_Ys
+ * @param hit_Zs
+ * @param sensor_Zs
  */
 void fillCandidates(__global int* const hit_candidates,
   __global int* const hit_h2_candidates, const int number_of_sensors,
@@ -85,7 +85,7 @@ void fillCandidates(__global int* const hit_candidates,
         if (process_h2_candidates) {
           // Note: Here, we take h0 as if it were h1, the rest
           // of the notation is fine.
-          
+
           // Min and max possible x0s
           const float h_dist = fabs(h0.z - z_s0);
           const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
@@ -100,7 +100,7 @@ void fillCandidates(__global int* const hit_candidates,
           x = x0_min + (h0.x - x0_min) * z2_tz;
           xmax_h2 = x + PARAM_TOLERANCE_CANDIDATES;
         }
-        
+
         if (first_sensor >= 4) {
           // Iterate in all hits in z1
           for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
@@ -117,7 +117,7 @@ void fillCandidates(__global int* const hit_candidates,
                 const float h_dist = fabs(h1.z - h0.z);
                 const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
                 const bool tol_condition = fabs(h1.x - h0.x) < dxmax;
-                
+
                 // Find the first one
                 if (!first_h1_found && tol_condition) {
                   ASSERT(2 * h0_index < 2 * (sensor_hitStarts[number_of_sensors-1] + sensor_hitNums[number_of_sensors-1]))
@@ -180,21 +180,21 @@ void fillCandidates(__global int* const hit_candidates,
 /**
  * @brief Performs the track forwarding.
  *
- * @param hit_Xs           
- * @param hit_Ys           
- * @param hit_Zs           
- * @param sensor_data      
- * @param sh_hit_x         
- * @param sh_hit_y         
- * @param sh_hit_z         
- * @param diff_ttf         
- * @param blockDim_product 
- * @param tracks_to_follow 
- * @param weak_tracks      
- * @param prev_ttf         
- * @param tracklets        
- * @param tracks           
- * @param number_of_hits   
+ * @param hit_Xs
+ * @param hit_Ys
+ * @param hit_Zs
+ * @param sensor_data
+ * @param sh_hit_x
+ * @param sh_hit_y
+ * @param sh_hit_z
+ * @param diff_ttf
+ * @param blockDim_product
+ * @param tracks_to_follow
+ * @param weak_tracks
+ * @param prev_ttf
+ * @param tracklets
+ * @param tracks
+ * @param number_of_hits
  */
 void trackForwarding(
 #if USE_SHARED_FOR_HITS
@@ -225,7 +225,7 @@ void trackForwarding(
       trackno = fulltrackno & 0x0FFFFFFF;
 
       __global const struct Track* const track_pointer = track_flag ? tracklets : tracks;
-      
+
       ASSERT(track_pointer==tracklets ? trackno < number_of_hits : true)
       ASSERT(track_pointer==tracks ? trackno < MAX_TRACKS : true)
       t = track_pointer[trackno];
@@ -257,13 +257,13 @@ void trackForwarding(
 
     // Search for a best fit
     // Load shared elements
-    
+
     // Iterate in the third list of hits
     // Tiled memory access on h2
     // Only load for get_local_id(1) == 0
     float best_fit = MAX_FLOAT;
     for (int k=0; k<(sensor_data[SENSOR_DATA_HITNUMS + 2] + blockDim_sh_hit - 1) / blockDim_sh_hit; ++k) {
-      
+
 #if USE_SHARED_FOR_HITS
       barrier(CLK_LOCAL_MEM_FENCE);
       const int tid = get_local_id(1) * get_local_size(0) + get_local_id(0);
@@ -283,7 +283,7 @@ void trackForwarding(
       if (ttf_condition) {
         const int last_hit_h2 = min(blockDim_sh_hit * (k + 1), sensor_data[SENSOR_DATA_HITNUMS + 2]);
         for (int kk=blockDim_sh_hit * k; kk<last_hit_h2; ++kk) {
-          
+
           const int h2_index = sensor_data[2] + kk;
 #if USE_SHARED_FOR_HITS
           const int sh_h2_index = kk % blockDim_sh_hit;
@@ -369,25 +369,25 @@ void trackForwarding(
 
 /**
  * @brief Track Creation
- * 
- * @param hit_Xs                  
- * @param hit_Ys                  
- * @param hit_Zs                  
- * @param sensor_data             
- * @param hit_candidates          
- * @param max_numhits_to_process  
- * @param sh_hit_x                
- * @param sh_hit_y                
- * @param sh_hit_z                
- * @param sh_hit_process          
- * @param hit_used                
- * @param hit_h2_candidates       
- * @param blockDim_sh_hit         
- * @param best_fits               
- * @param tracklets_insertPointer 
- * @param ttf_insertPointer       
- * @param tracklets               
- * @param tracks_to_follow        
+ *
+ * @param hit_Xs
+ * @param hit_Ys
+ * @param hit_Zs
+ * @param sensor_data
+ * @param hit_candidates
+ * @param max_numhits_to_process
+ * @param sh_hit_x
+ * @param sh_hit_y
+ * @param sh_hit_z
+ * @param sh_hit_process
+ * @param hit_used
+ * @param hit_h2_candidates
+ * @param blockDim_sh_hit
+ * @param best_fits
+ * @param tracklets_insertPointer
+ * @param ttf_insertPointer
+ * @param tracklets
+ * @param tracks_to_follow
  */
 void trackCreation(
 #if USE_SHARED_FOR_HITS
@@ -415,7 +415,7 @@ void trackCreation(
     h0.x = hit_Xs[h0_index];
     h0.y = hit_Ys[h0_index];
     h0.z = hit_Zs[h0_index];
-    
+
     // Calculate new dymax
     const float s1_z = hit_Zs[sensor_data[1]];
     const float h_dist = fabs(s1_z - h0.z);
@@ -512,7 +512,7 @@ void trackCreation(
               const float scatterDenom = 1.f / (h2.z - h1.z);
               const float scatter = scatterNum * scatterDenom * scatterDenom;
               const bool condition = scatter < MAX_SCATTER;
-              const float fit = condition * scatter + !condition * MAX_FLOAT; 
+              const float fit = condition * scatter + !condition * MAX_FLOAT;
 
               const bool fit_is_better = fit < best_fit;
               best_fit = fit_is_better * fit + !fit_is_better * best_fit;
@@ -580,19 +580,19 @@ void trackCreation(
  *          The algorithm consists in two stages: Track following, and seeding. In each step [iteration],
  *          the track following is performed first, hits are marked as used, and then the seeding is performed,
  *          requiring the first two hits in the triplet to be unused.
- * 
- * @param dev_tracks            
- * @param dev_input             
- * @param dev_tracks_to_follow  
- * @param dev_hit_used          
- * @param dev_atomicsStorage    
- * @param dev_tracklets         
- * @param dev_weak_tracks       
- * @param dev_event_offsets     
- * @param dev_hit_offsets       
- * @param dev_best_fits         
- * @param dev_hit_candidates    
- * @param dev_hit_h2_candidates 
+ *
+ * @param dev_tracks
+ * @param dev_input
+ * @param dev_tracks_to_follow
+ * @param dev_hit_used
+ * @param dev_atomicsStorage
+ * @param dev_tracklets
+ * @param dev_weak_tracks
+ * @param dev_event_offsets
+ * @param dev_hit_offsets
+ * @param dev_best_fits
+ * @param dev_hit_candidates
+ * @param dev_hit_h2_candidates
  */
 __kernel void clSearchByTriplets(__global struct Track* const dev_tracks, __global const char* const dev_input,
   __global int* const dev_tracks_to_follow, __global bool* const dev_hit_used,
@@ -600,7 +600,7 @@ __kernel void clSearchByTriplets(__global struct Track* const dev_tracks, __glob
   __global int* const dev_weak_tracks, __global int* const dev_event_offsets,
   __global int* const dev_hit_offsets, __global float* const dev_best_fits,
   __global int* const dev_hit_candidates, __global int* const dev_hit_h2_candidates) {
-  
+
 
   // Data initialization
   // Each event is treated with two blocks, one for each side.
@@ -671,7 +671,7 @@ __kernel void clSearchByTriplets(__global struct Track* const dev_tracks, __glob
   while (first_sensor >= 4) {
 
     barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-    
+
     // Iterate in sensors
     // Load in shared
     if (get_local_id(0) < 6 && get_local_id(1) == 0) {
@@ -713,7 +713,7 @@ __kernel void clSearchByTriplets(__global struct Track* const dev_tracks, __glob
     // Iterate in all hits for current sensor
     // 2a. Seeding - Track creation
 
-    // Pre-seeding 
+    // Pre-seeding
     // Get the hits we are going to iterate onto in sh_hit_process,
     // in groups of max NUMTHREADS_X
 
@@ -723,7 +723,7 @@ __kernel void clSearchByTriplets(__global struct Track* const dev_tracks, __glob
 
       barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
       if (get_local_id(1) == 0) {
-        // All threads in this context will add a hit to the 
+        // All threads in this context will add a hit to the
         // shared elements, or exhaust the list
         const int shift_sh_element = get_local_id(1) * get_local_size(0) + get_local_id(0);
         int sh_element = sh_hit_prevPointer + shift_sh_element;

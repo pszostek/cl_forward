@@ -25,7 +25,7 @@ int convertClToString(const char *filename, std::string& s)
     size = fileSize = (size_t)f.tellg();
     f.seekg(0, std::fstream::beg);
     str = new char[size+1];
-    
+
     if (!str) {
       f.close();
       return 0;
@@ -128,20 +128,20 @@ int divide (float* a, float* b, float* c, unsigned int* d, int start, int end) {
     int left;
     int right;
     float pivot;
- 
+
     pivot = a[start];
     left = start;
     right = end;
- 
+
     while (left < right) {
         while (a[right] > pivot) {
             right--;
         }
- 
+
         while ((left < right) && (a[left] <= pivot)) {
             left++;
         }
- 
+
         if (left < right) {
             swap(a[left], a[right]);
             swap(b[left], b[right]);
@@ -149,12 +149,12 @@ int divide (float* a, float* b, float* c, unsigned int* d, int start, int end) {
             swap(d[left], d[right]);
         }
     }
- 
+
     swap(a[right], a[start]);
     swap(b[right], b[start]);
     swap(c[right], c[start]);
     swap(d[right], d[start]);
- 
+
     return right;
 }
 

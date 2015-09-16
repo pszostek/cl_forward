@@ -34,15 +34,15 @@
 #define SENSOR_DATA_HITNUMS 3
 #define RESULTS_FOLDER "results"
 
-#define PRINT_SOLUTION false
-#define PRINT_VERBOSE false
+#define PRINT_SOLUTION true
+#define PRINT_VERBOSE true
 #define ASSERTS_ENABLED false
 
 #if ASSERTS_ENABLED == true
 #include "assert.h"
 #define ASSERT(EXPR) ASSERT_CL_RETURN(EXPR, #EXPR);
 #else
-#define ASSERT(EXPR) 
+#define ASSERT(EXPR)
 #endif
 
 struct Sensor {
