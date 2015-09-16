@@ -1,9 +1,10 @@
 
-#include "GpuPixelSearchByTriplet.h"
+#include "PixelSearchByTriplet.h"
 
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
-    std::vector<std::vector<uint8_t> > & output) {
+    std::vector<std::vector<uint8_t> > & output,
+    ExecMode mode) {
 
   std::vector<const std::vector<uint8_t>* > converted_input;
   converted_input.resize(input.size());
@@ -38,8 +39,8 @@ int gpuPixelSearchByTriplet(
 
 /**
  * Common entrypoint for Gaudi and non-Gaudi
- * @param input  
- * @param output 
+ * @param input
+ * @param output
  */
 int gpuPixelSearchByTripletInvocation(
     const std::vector<const std::vector<uint8_t>* > & input,
@@ -49,7 +50,7 @@ int gpuPixelSearchByTripletInvocation(
   // Define how many blocks / threads we need to deal with numberOfEvents
   // Each execution will return a different output
   output.resize(input.size());
-  
+
   // Execute maximum n number of events every time
   const int max_events_to_process_per_kernel = 16000;
 
@@ -62,4 +63,32 @@ int gpuPixelSearchByTripletInvocation(
   }
 
   return 0;
+}
+
+/**
+  * Common entrypoint for Gaudi and non-Gaudi
+  * @param input
+  * @param output
+  */
+int cpuPixelSearchByTripletSerialRun(
+        const std::vector<const std::vector<uint8_t>* > & input,
+        std::vector<std::vector<uint8_t> > & output) {
+    DEBUG << "executing cpuPixelSearchByTriplet with " << input.size() << " events" << std::endl;
+
+    // Define how many blocks / threads we need to deal with numberOfEvents
+    // Each execution will return a different output
+    output.resize(input.size());
+
+    // Execute maximum n number of events every time
+    const int max_events_to_process_per_kernel = 16000;
+
+    for (int i=0; i<input.size(); i+=max_events_to_process_per_kernel){
+        int events_to_process = input.size() - i;
+        if (events_to_process > max_events_to_process_per_kernel)
+            events_to_process = max_events_to_process_per_kernel;
+
+        //serialSearch(i, events_to_process, input, output);
+    }
+
+    return 0;
 }

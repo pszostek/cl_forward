@@ -1,4 +1,4 @@
-#include "KernelInvoker.h"
+#include "GpuKernelInvoker.h"
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 
 extern int*   h_no_sensors;
@@ -21,7 +21,7 @@ int invokeParallelSearch(
   const std::vector<uint8_t>* startingEvent_input = input[startingEvent];
   setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size());
   int number_of_sensors = *h_no_sensors;
-  
+
   // Startup settings
   size_t global_work_size[2] = { (size_t) NUMTHREADS_X * eventsToProcess, 2 };
   size_t local_work_size[2] = { (size_t) NUMTHREADS_X, 2 };
@@ -46,11 +46,11 @@ int invokeParallelSearch(
   const char* source = source_str.c_str();
   size_t sourceSize[] = { source_str.size() };
   cl_program program = clCreateProgramWithSource(context, 1, &source, sourceSize, NULL);
-  
+
   // Step 6: Build program
   const char* buildOptions = "";
   // const char* buildOptions = "-cl-nv-maxrregcount=32";
-  // const char* buildOptions = "-g -s /home/dcampora/nfs/projects/gpu/tf_opencl/KernelDefinitions.cl -s /home/dcampora/nfs/projects/gpu/tf_opencl/Kernel.cl"; 
+  // const char* buildOptions = "-g -s /home/dcampora/nfs/projects/gpu/tf_opencl/KernelDefinitions.cl -s /home/dcampora/nfs/projects/gpu/tf_opencl/Kernel.cl";
   cl_int status = clBuildProgram(program, 1, devices, buildOptions, NULL, NULL);
 
   if (status != CL_SUCCESS) {
@@ -71,7 +71,7 @@ int invokeParallelSearch(
   clCheck(clGetProgramBuildInfo(program, devices[DEVICE_NUMBER], CL_PROGRAM_BUILD_LOG , 0, NULL, &size));
 
   // Step 7: Memory
-  
+
   // Allocate memory
   // Prepare event offset and hit offset
   std::vector<int> event_offsets;
@@ -87,10 +87,10 @@ int invokeParallelSearch(
     acc_size += event_size;
     acc_hits += event->numberOfHits;
   }
-  
+
   // Allocate CPU buffers
   const int atomic_space = NUM_ATOMICS + 1;
-  int* atomics = (int*) malloc(eventsToProcess * atomic_space * sizeof(int));  
+  int* atomics = (int*) malloc(eventsToProcess * atomic_space * sizeof(int));
   int* hit_candidates = (int*) malloc(2 * acc_hits * sizeof(int));
 
   // Allocate GPU buffers
@@ -119,7 +119,7 @@ int invokeParallelSearch(
   // Step 8: Create kernel object
   cl_kernel kernel = clCreateKernel(program, "clSearchByTriplets", NULL);
 
-  // Step 9: Sets Kernel arguments 
+  // Step 9: Sets Kernel arguments
   clCheck(clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *) &dev_tracks));
   clCheck(clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *) &dev_input));
   clCheck(clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *) &dev_tracks_to_follow));
@@ -132,7 +132,7 @@ int invokeParallelSearch(
   clCheck(clSetKernelArg(kernel, 9, sizeof(cl_mem), (void *) &dev_best_fits));
   clCheck(clSetKernelArg(kernel, 10, sizeof(cl_mem), (void *) &dev_hit_candidates));
   clCheck(clSetKernelArg(kernel, 11, sizeof(cl_mem), (void *) &dev_hit_h2_candidates));
-  
+
   // Adding timing
   // Timing calculation
   unsigned int niterations = 4;
@@ -173,7 +173,7 @@ int invokeParallelSearch(
       clCheck(clEnqueueNDRangeKernel(commandQueue, kernel, work_dim, NULL, global_work_size, local_work_size, 0, NULL, &kernelEvent));
       // clCheck(clFinish(commandQueue));
       clCheck(clWaitForEvents(1 , &kernelEvent));
-  
+
       // Start and end of event
       unsigned long tstart = 0;
       unsigned long tend = 0;
@@ -183,7 +183,7 @@ int invokeParallelSearch(
 
       // Compute the duration in nanoseconds
       unsigned long tduration = tend - tstart;
-      
+
       // DEBUG << "Execution time (ms): " << tduration / 1000000.0 << std::endl;
       time_values[i].push_back(tduration / 1000000.0f);
 
@@ -198,14 +198,14 @@ int invokeParallelSearch(
   for (int i=0; i<eventsToProcess; ++i){
     const int numberOfTracks = atomics[i];
     if (PRINT_SOLUTION) DEBUG << numberOfTracks << ", ";
-    
+
     output[startingEvent + i].resize(numberOfTracks * sizeof(Track));
     if (numberOfTracks > 0) {
       clCheck(clEnqueueReadBuffer(commandQueue, dev_tracks, CL_TRUE, i * MAX_TRACKS * sizeof(Track), numberOfTracks * sizeof(Track), &(output[startingEvent + i])[0], 0, NULL, NULL));
     }
   }
   if (PRINT_SOLUTION) DEBUG << std::endl;
-  
+
   if (PRINT_VERBOSE) {
     // Print solution of all events processed, to results
     for (int i=0; i<eventsToProcess; ++i) {
@@ -235,6 +235,7 @@ int invokeParallelSearch(
       const int numberOfTracks = output[i].size() / sizeof(Track);
       Track* tracks_in_solution = (Track*) &(output[startingEvent + i])[0];
       std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string(".out"));
+      DEBUG << "writing to: " << std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string(".out") << std::endl;
       for(int j=0; j<numberOfTracks; ++j){
         printTrack(tracks_in_solution, j, zhit_to_module, outfile);
       }
@@ -278,9 +279,9 @@ int invokeParallelSearch(
  * Prints tracks
  * Track #n, length <length>:
  *  <ID> module <module>, x <x>, y <y>, z <z>
- * 
- * @param tracks      
- * @param trackNumber 
+ *
+ * @param tracks
+ * @param trackNumber
  */
 void printTrack(Track* tracks, const int trackNumber,
   const std::map<int, int>& zhit_to_module, std::ofstream& outstream){
@@ -307,8 +308,8 @@ void printTrack(Track* tracks, const int trackNumber,
 
 /**
  * The z of the hit may not correspond to any z in the sensors.
- * @param  z              
- * @param  zhit_to_module 
+ * @param  z
+ * @param  zhit_to_module
  * @return                sensor number
  */
 int findClosestModule(const int z, const std::map<int, int>& zhit_to_module){

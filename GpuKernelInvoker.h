@@ -1,5 +1,5 @@
-#ifndef KERNEL_INVOKER
-#define KERNEL_INVOKER 1
+#ifndef GPU_KERNEL_INVOKER
+#define GPU_KERNEL_INVOKER 1
 
 #include <iostream>
 #include "Definitions.h"
