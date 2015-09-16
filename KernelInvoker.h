@@ -15,7 +15,11 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include <CL/cl.h>
+#ifdef __APPLE__
+    #include "OpenCL/opencl.h"
+#else
+    #include <CL/cl.h>
+#endif
 
 void getMaxNumberOfHits(char*& input, int& maxHits);
 void printOutSensorHits(int sensorNumber, int* prevs, int* nexts);
