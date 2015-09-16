@@ -15,7 +15,12 @@
 #include <stdint.h>
 #include <stdexcept>
 
-#include <CL/cl.h>
+#ifdef __APPLE__
+    #include "OpenCL/opencl.h"
+#else
+    #include <CL/cl.h>
+#endif
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
