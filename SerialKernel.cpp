@@ -1,4 +1,5 @@
-#include <stdint.h>
+#include <cstdint>
+#include <cfloat>
 #include <cmath>
 #include "KernelDefinitions.h"
 
@@ -15,7 +16,7 @@
  * @param h2
  * @return
  */
- /*
+
 float fitHitToTrack(const float tx, const float ty, const struct Hit* h0, const float h1_z, const struct Hit* h2) {
   // tolerances
   const float dz = h2->z - h0->z;
@@ -37,7 +38,7 @@ float fitHitToTrack(const float tx, const float ty, const struct Hit* h0, const 
 
   return condition * scatter + !condition * MAX_FLOAT;
 }
-*/
+
 /**
  * @brief Fills dev_hit_candidates.
  *
@@ -246,36 +247,35 @@ void trackForwarding(
       tx = txn * td;
       ty = tyn * td;
     }
-/*
 
     // Search for a best fit
     // Load shared elements
 
+    // OA: once the shared mem goes away much of the logic here becomes redundant.
+    // TODO: discuss this - I'm not entirely sure, but a simple loop k=0:hitNums
+    // could be enugh
     // Iterate in the third list of hits
     // Tiled memory access on h2
     // Only load for get_local_id(1) == 0
-    float best_fit = MAX_FLOAT;
-    for (int k=0; k<(sensor_data[SENSOR_DATA_HITNUMS + 2] + blockDim_sh_hit - 1) / blockDim_sh_hit; ++k) {
+    float best_fit = FLT_MAX;
 
-      if (ttf_condition) {
-        const int last_hit_h2 = min(blockDim_sh_hit * (k + 1), sensor_data[SENSOR_DATA_HITNUMS + 2]);
-        for (int kk=blockDim_sh_hit * k; kk<last_hit_h2; ++kk) {
+    if (ttf_condition) {
+      for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
+        const int h2_index = sensor_data[2] + k;
+        struct Hit h2;
+        h2.x = hit_Xs[h2_index];
+        h2.y = hit_Ys[h2_index];
+        h2.z = hit_Zs[h2_index];
 
-          const int h2_index = sensor_data[2] + kk;
-          struct Hit h2;
-          h2.x = hit_Xs[h2_index];
-          h2.y = hit_Ys[h2_index];
-          h2.z = hit_Zs[h2_index];
+        const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
+        const bool fit_is_better = fit < best_fit;
 
-          const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
-          const bool fit_is_better = fit < best_fit;
-
-          best_fit = fit_is_better * fit + !fit_is_better * best_fit;
-          best_hit_h2 = fit_is_better * h2_index + !fit_is_better * best_hit_h2;
-        }
+        best_fit = fit_is_better * fit + !fit_is_better * best_fit;
+        best_hit_h2 = fit_is_better * h2_index + !fit_is_better * best_hit_h2;
       }
     }
 
+/*
     // We have a best fit!
     // Fill in t, ONLY in case the best fit is acceptable
     if (ttf_condition) {
