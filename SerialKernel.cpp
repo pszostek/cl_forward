@@ -275,11 +275,11 @@ void trackForwarding(
       }
     }
 
-/*
+
     // We have a best fit!
     // Fill in t, ONLY in case the best fit is acceptable
     if (ttf_condition) {
-      if (best_fit != MAX_FLOAT) {
+      if (best_fit != FLT_MAX) {
         // Mark h2 as used
         ASSERT(best_hit_h2 < number_of_hits)
         hit_used[best_hit_h2] = true;
@@ -303,7 +303,7 @@ void trackForwarding(
           // If it is a track made out of less than or equal than 4 hits,
           // we have to allocate it in the tracks pointer
           // XXX OA: no more atomic_add needed
-          trackno = atomic_add(tracks_insertPointer, 1);
+          //trackno = atomic_add(tracks_insertPointer, 1);
           trackno = ++tracks_insertPointer;
         }
 
@@ -323,20 +323,19 @@ void trackForwarding(
         trackno = ((skipped_modules + 1) << 28) | (fulltrackno & 0x8FFFFFFF);
 
         // Add the tracks to the bag of tracks to_follow
-        const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-        tracks_to_follow[ttfP] = trackno;
+        //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
+        tracks_to_follow[++ttf_insertPointer] = trackno;
       }
       // If there are only three hits in this track,
       // mark it as "doubtful"
       else if (t.hitsNum == 3) {
-        const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
-        ASSERT(weakP < number_of_hits)
-        weak_tracks[weakP] = trackno;
+        //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
+        weak_tracks[++weaktracks_insertPointer] = trackno;
+        ASSERT(weaktracks_insertPointer < number_of_hits)
       }
       // In the "else" case, we couldn't follow up the track,
       // so we won't be track following it anymore.
     }
-    */
   }
 }
 /**
