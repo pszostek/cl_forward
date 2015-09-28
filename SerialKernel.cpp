@@ -21,11 +21,11 @@ float fitHitToTrack(const float tx, const float ty, const struct Hit* h0, const 
   // tolerances
   const float dz = h2->z - h0->z;
   const float x_prediction = h0->x + tx * dz;
-  const float dx = fabs(x_prediction - h2->x);
+  const float dx = std::abs(x_prediction - h2->x);
   const bool tolx_condition = dx < PARAM_TOLERANCE;
 
   const float y_prediction = h0->y + ty * dz;
-  const float dy = fabs(y_prediction - h2->y);
+  const float dy = std::abs(y_prediction - h2->y);
   const bool toly_condition = dy < PARAM_TOLERANCE;
 
   // Scatter - Updated to last PrPixel
@@ -360,13 +360,13 @@ void trackForwarding(
  * @param tracklets
  * @param tracks_to_follow
  */
- /*
-void trackCreation(
-  __global const float* const hit_Xs, __global const float* const hit_Ys, __global const float* const hit_Zs,
-  __local int* const sensor_data, __global int* const hit_candidates, __global int* const max_numhits_to_process, __local int* const sh_hit_process,
-  __global bool* const hit_used, __global int* const hit_h2_candidates, const int blockDim_sh_hit, __global float* const best_fits,
-  __global int* const tracklets_insertPointer, __global int* const ttf_insertPointer,
-  __global struct Track* const tracklets, __global int* const tracks_to_follow) {
+
+void trackCreation(const float* const hit_Xs,
+    const float* const hit_Ys, const float* const hit_Zs,
+    int* const sensor_data, int* const hit_candidates, int h0_index,
+    bool* const hit_used, int* const hit_h2_candidates,
+    int& tracklets_insertPointer, int&  ttf_insertPointer,
+    struct Track* const tracklets, int* const tracks_to_follow) {
 
   // Track creation starts
   unsigned int best_hit_h1, best_hit_h2;
@@ -374,33 +374,28 @@ void trackCreation(
   int first_h1, first_h2, last_h2;
   float dymax;
 
-  const int h0_index = sh_hit_process[get_local_id(0)];
   bool inside_bounds = h0_index != -1;
   unsigned int num_h1_to_process = 0;
   float best_fit = MAX_FLOAT;
 
   // We will repeat this for performance reasons
-  if (inside_bounds) {
-    h0.x = hit_Xs[h0_index];
-    h0.y = hit_Ys[h0_index];
-    h0.z = hit_Zs[h0_index];
+  h0.x = hit_Xs[h0_index];
+  h0.y = hit_Ys[h0_index];
+  h0.z = hit_Zs[h0_index];
 
-    // Calculate new dymax
-    const float s1_z = hit_Zs[sensor_data[1]];
-    const float h_dist = fabs(s1_z - h0.z);
-    dymax = PARAM_MAXYSLOPE * h_dist;
+  // Calculate new dymax
+  const float s1_z = hit_Zs[sensor_data[1]];
+  const float h_dist = std::abs(s1_z - h0.z);
+  dymax = PARAM_MAXYSLOPE * h_dist;
 
-    // Only iterate in the hits indicated by hit_candidates :)
-    first_h1 = hit_candidates[2 * h0_index];
-    const int last_h1 = hit_candidates[2 * h0_index + 1];
-    num_h1_to_process = last_h1 - first_h1;
-    atomic_max(max_numhits_to_process, num_h1_to_process);
-    ASSERT(max_numhits_to_process[0] >= num_h1_to_process)
-  }
-
-  barrier(CLK_GLOBAL_MEM_FENCE);
+  // Only iterate in the hits indicated by hit_candidates :)
+  first_h1 = hit_candidates[2 * h0_index];
+  const int last_h1 = hit_candidates[2 * h0_index + 1];
+  num_h1_to_process = last_h1 - first_h1;
+/*
 
   // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
+  // TODO OA: get rid of max_numhits. Now just iterate up to num_h1_to_process
   for (int j=0; j<(max_numhits_to_process[0] + get_local_size(1) - 1) / get_local_size(1); ++j) {
     const int h1_element = get_local_size(1) * j + get_local_id(1);
     inside_bounds &= h1_element < num_h1_to_process; // Hmmm...
@@ -498,7 +493,9 @@ void trackCreation(
     ASSERT(trackP < number_of_hits)
     tracklets[trackP].hitsNum = 3;
     __global unsigned int* const t_hits = tracklets[trackP].hits;
-    t_hits[0] = (unsigned int) sh_hit_process[get_local_id(0)];
+    // TODO: OA, check this
+    // t_hits[0] = (unsigned int) sh_hit_process[get_local_id(0)];
+    t_hits[0] = (unsigned int) h0_index;
     t_hits[1] = best_hit_h1;
     t_hits[2] = best_hit_h2;
 
@@ -508,8 +505,9 @@ void trackCreation(
     const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
     tracks_to_follow[ttfP] = 0x80000000 | trackP;
   }
-}
 */
+}
+
 /**
  * @brief Track following algorithm, loosely based on Pr/PrPixel.
  * @details It should be simplistic in its design, as is the Pixel VELO problem
@@ -533,13 +531,12 @@ void trackCreation(
  * @param dev_weak_tracks
  * @param dev_event_offsets
  * @param dev_hit_offsets
- * @param dev_best_fits
  * @param dev_hit_candidates
  * @param dev_hit_h2_candidates
  */
 void serialSearchByTriplets(struct Track* const tracks, uint8_t* input,
   int* const dev_atomicsStorage, int* const dev_event_offsets,
-  int* const dev_hit_offsets, float* const dev_best_fits,
+  int* const dev_hit_offsets,
   int* const dev_hit_candidates, int* const dev_hit_h2_candidates) {
 
 
@@ -577,11 +574,9 @@ void serialSearchByTriplets(struct Track* const tracks, uint8_t* input,
   int* hit_candidates = new int[number_of_hits];
   int* hit_h2_candidates = new int[number_of_hits];
 
-  // TODO see what's needed and how to allocae it.
   int* tracks_to_follow = new int[TTF_MODULO];
   int* weak_tracks = new int[number_of_hits];
   struct Track* const tracklets = new Track[number_of_hits];
-  //float* const best_fits = dev_best_fits + event_number * blockDim_product;
 
   // Initialize variables according to event number and sensor side
   // Insert pointers (atomics)
@@ -668,7 +663,6 @@ void serialSearchByTriplets(struct Track* const tracks, uint8_t* input,
       sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
       tracklets, tracks, number_of_hits);
 
-/*
     // Iterate in all hits for current sensor
     // 2a. Seeding - Track creation
 
@@ -676,52 +670,15 @@ void serialSearchByTriplets(struct Track* const tracks, uint8_t* input,
     // Get the hits we are going to iterate onto in sh_hit_process,
     // in groups of max NUMTHREADS_X
 
-    unsigned int sh_hit_prevPointer = 0;
-    unsigned int shift_lastPointer = get_local_size(0);
-    while (sh_hit_prevPointer < sensor_data[SENSOR_DATA_HITNUMS]) {
+    for(int h0_index = sensor_data[0]; h0_index <         sensor_data[SENSOR_DATA_HITNUMS]; ++h0_index) {
 
-      barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-      if (get_local_id(1) == 0) {
-        // All threads in this context will add a hit to the
-        // shared elements, or exhaust the list
-        const int shift_sh_element = get_local_id(1) * get_local_size(0) + get_local_id(0);
-        int sh_element = sh_hit_prevPointer + shift_sh_element;
-        bool inside_bounds = sh_element < sensor_data[SENSOR_DATA_HITNUMS];
-        int h0_index = sensor_data[0] + sh_element;
-        bool is_h0_used = inside_bounds ? hit_used[h0_index] : 1;
-
-        // Find an unused element or exhaust the list,
-        // in case the hit is used
-        while (inside_bounds && is_h0_used) {
-          // Since it is used, find another element while we are inside bounds
-          // This is a simple gather for those elements
-          sh_element = sh_hit_prevPointer + shift_lastPointer + atomic_add(sh_hit_lastPointer, 1);
-          inside_bounds = sh_element < sensor_data[SENSOR_DATA_HITNUMS];
-          h0_index = sensor_data[0] + sh_element;
-          is_h0_used = inside_bounds ? hit_used[h0_index] : 1;
-        }
-
-        // Fill in sh_hit_process with either the found hit or -1
-        ASSERT(shift_sh_element < NUMTHREADS_X)
-        ASSERT(h0_index >= 0)
-        sh_hit_process[shift_sh_element] = (inside_bounds && !is_h0_used) ? h0_index : -1;
+        trackCreation(hit_Xs, hit_Ys, hit_Zs, sensor_data,
+          hit_candidates, h0_index, hit_used, hit_h2_candidates,
+          tracklets_insertPointer, ttf_insertPointer, tracklets, tracks_to_follow);
       }
-      barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-
-      // Update the iteration condition
-      sh_hit_prevPointer = sh_hit_lastPointer[0] + shift_lastPointer;
-      shift_lastPointer += get_local_size(0);
-
-      // Track creation
-      trackCreation(
-        hit_Xs, hit_Ys, hit_Zs, (__local int*) &sensor_data[0], hit_candidates, max_numhits_to_process,
-        (__local int*) &sh_hit_process[0], hit_used, hit_h2_candidates, blockDim_sh_hit, best_fits,
-        tracklets_insertPointer, ttf_insertPointer, tracklets, tracks_to_follow);
-    }
 
     first_sensor -= 1;
-    */
-  }
+    }
  /*
   barrier(CLK_GLOBAL_MEM_FENCE);
 
