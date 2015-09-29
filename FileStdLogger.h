@@ -22,7 +22,7 @@ class FileStdLogger : public std::ostream {
 private:
     std::streambuf* b;
 public:
-    FileStdLogger() : std::ostream(b) {}
+    //FileStdLogger() : std::ostream(b) {}
 };
 
 // Can't believe this is so simple
@@ -62,7 +62,7 @@ public:
     std::ostream* _void_stream;
     std::streambuf* _old;
 
-    VoidLogger(std::ostream* void_stream) : 
+    VoidLogger(std::ostream* void_stream) :
         _void_stream(void_stream) {
         _old = _void_stream->rdbuf(this);
     }
