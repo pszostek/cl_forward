@@ -589,111 +589,96 @@ void serialSearchByTriplets(struct Track* const tracks, uint8_t* input,
         // why is it not in an ifdef
         /*
         if (get_local_id(0) < 6 && get_local_id(1) == 0) {
-        const int sensor_number = first_sensor - (get_local_id(0) % 3) * 2;
-        __global const int* const sensor_pointer = get_local_id(0) < 3 ? sensor_hitStarts : sensor_hitNums;
+            const int sensor_number = first_sensor - (get_local_id(0) % 3) * 2;
+            __global const int* const sensor_pointer = get_local_id(0) < 3 ? sensor_hitStarts : sensor_hitNums;
 
-        sensor_data[get_local_id(0)] = sensor_pointer[sensor_number];
+            sensor_data[get_local_id(0)] = sensor_pointer[sensor_number];
+        }
+        else if (get_local_id(0) == 7 && get_local_id(1) == 0) {
+            max_numhits_to_process[0] = 0;
+        }
+        */
+        // OA: this should do the same thing for the serial code as the above if branch:
+        for (int i = 0; i < 6; ++i) {
+            const int sensor_number = first_sensor - (i % 3) * 2;
+            const int* const sensor_pointer = i < 3 ? sensor_hitStarts : sensor_hitNums;
+            sensor_data[i] = sensor_pointer[sensor_number];
+        }
+
+        // We need this barrier if we are not using shared memory for the hits.
+        // Removing shmem for hits removes the barriers in trackForwarding.
+        // Otherwise the three statements from before could be executed before / after updating
+        // the values inside trackForwarding
+        prev_ttf = last_ttf;
+        last_ttf = ttf_insertPointer;
+        const unsigned int diff_ttf = last_ttf - prev_ttf;
+
+        //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
+
+        // 2a. Track forwarding
+        trackForwarding( hit_Xs, hit_Ys, hit_Zs, hit_used,
+            tracks_insertPointer, ttf_insertPointer, weaktracks_insertPointer,
+            sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
+            tracklets, tracks, number_of_hits);
+
+        // Iterate in all hits for current sensor
+        // 2a. Seeding - Track creation
+
+        // Pre-seeding
+        // Get the hits we are going to iterate onto in sh_hit_process,
+        // in groups of max NUMTHREADS_X
+
+        for(int h0_index = sensor_data[0]; h0_index <         sensor_data[SENSOR_DATA_HITNUMS]; ++h0_index) {
+
+            trackCreation(hit_Xs, hit_Ys, hit_Zs, sensor_data,
+                hit_candidates, h0_index, hit_used, hit_h2_candidates,
+                tracklets_insertPointer, ttf_insertPointer, tracklets, tracks_to_follow);
+        }
+
+        first_sensor -= 1;
     }
 
-    else if (get_local_id(0) == 6 && get_local_id(1) == 0) {
-    sh_hit_lastPointer[0] = 0;
-}
+    prev_ttf = last_ttf;
+    last_ttf = ttf_insertPointer;
+    const unsigned int diff_ttf = last_ttf - prev_ttf;
 
-else if (get_local_id(0) == 7 && get_local_id(1) == 0) {
-max_numhits_to_process[0] = 0;
-}
-*/
-// OA: this should do the same thing for the serial code as the above if branch:
-for (int i = 0; i < 6; ++i) {
-    const int sensor_number = first_sensor - (i % 3) * 2;
-    const int* const sensor_pointer = i < 3 ? sensor_hitStarts : sensor_hitNums;
-    sensor_data[i] = sensor_pointer[sensor_number];
-}
+    // Process the last bunch of track_to_follows
+    for (int ttf_element = 0; ttf_element< diff_ttf; ++ttf_element) {
 
-// We need this barrier if we are not using shared memory for the hits.
-// Removing shmem for hits removes the barriers in trackForwarding.
-// Otherwise the three statements from before could be executed before / after updating
-// the values inside trackForwarding
-prev_ttf = last_ttf;
-last_ttf = ttf_insertPointer;
-const unsigned int diff_ttf = last_ttf - prev_ttf;
+        const int fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
+        const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
+        const int trackno = fulltrackno & 0x0FFFFFFF;
 
-//barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
+        // Here we are only interested in three-hit tracks,
+        // to mark them as "doubtful"
+        if (track_flag) {
+            const unsigned int weakP = ++weaktracks_insertPointer;
+            ASSERT(weakP < number_of_hits)
+            weak_tracks[weakP] = trackno;
+        }
+    }
 
-// 2a. Track forwarding
-trackForwarding(
-hit_Xs, hit_Ys, hit_Zs, hit_used,
-tracks_insertPointer, ttf_insertPointer, weaktracks_insertPointer,
-sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
-tracklets, tracks, number_of_hits);
+    // Compute the three-hit tracks left
+    const unsigned int weaktracks_total = weaktracks_insertPointer;
+    for (int weaktrack_no = 0; weaktrack_no < weaktracks_total; ++weaktrack_no) {
 
-// Iterate in all hits for current sensor
-// 2a. Seeding - Track creation
+        // Load the tracks from the tracklets
+        const struct Track t = tracklets[weak_tracks[weaktrack_no]];
 
-// Pre-seeding
-// Get the hits we are going to iterate onto in sh_hit_process,
-// in groups of max NUMTHREADS_X
-
-for(int h0_index = sensor_data[0]; h0_index <         sensor_data[SENSOR_DATA_HITNUMS]; ++h0_index) {
-
-    trackCreation(hit_Xs, hit_Ys, hit_Zs, sensor_data,
-    hit_candidates, h0_index, hit_used, hit_h2_candidates,
-    tracklets_insertPointer, ttf_insertPointer, tracklets, tracks_to_follow);
-}
-
-first_sensor -= 1;
-}
-/*
-prev_ttf = last_ttf;
-last_ttf = ttf_insertPointer[0];
-const unsigned int diff_ttf = last_ttf - prev_ttf;
-
-// Process the last bunch of track_to_follows
-for (int i=0; i<(diff_ttf + blockDim_product - 1) / blockDim_product; ++i) {
-const unsigned int ttf_element = blockDim_product * i + get_local_id(1) * get_local_size(0) + get_local_id(0);
-
-if (ttf_element < diff_ttf) {
-const int fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
-const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
-const int trackno = fulltrackno & 0x0FFFFFFF;
-
-// Here we are only interested in three-hit tracks,
-// to mark them as "doubtful"
-if (track_flag) {
-const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
-ASSERT(weakP < number_of_hits)
-weak_tracks[weakP] = trackno;
-}
-}
-}
-
-barrier(CLK_GLOBAL_MEM_FENCE);
-
-// Compute the three-hit tracks left
-const unsigned int weaktracks_total = weaktracks_insertPointer[0];
-for (int i=0; i<(weaktracks_total + blockDim_product - 1) / blockDim_product; ++i) {
-const unsigned int weaktrack_no = blockDim_product * i + get_local_id(1) * get_local_size(0) + get_local_id(0);
-if (weaktrack_no < weaktracks_total) {
-
-// Load the tracks from the tracklets
-const struct Track t = tracklets[weak_tracks[weaktrack_no]];
-
-// Store them in the tracks bag iff they
-// are made out of three unused hits
-if (!hit_used[t.hits[0]] &&
-!hit_used[t.hits[1]] &&
-!hit_used[t.hits[2]]) {
-const unsigned int trackno = atomic_add(tracks_insertPointer, 1);
-ASSERT(trackno < MAX_TRACKS)
-tracks[trackno] = t;
-}
-}
-}
-*/
-delete[] hit_used;
-delete[] hit_candidates;
-delete[] hit_h2_candidates;
-delete[] tracks_to_follow;
-delete[] weak_tracks;
-delete[] tracklets;
+        // Store them in the tracks bag iff they
+        // are made out of three unused hits
+        if (!hit_used[t.hits[0]] &&
+            !hit_used[t.hits[1]] &&
+            !hit_used[t.hits[2]]) {
+            const unsigned int trackno = ++tracks_insertPointer;
+            ASSERT(trackno < MAX_TRACKS)
+            tracks[trackno] = t;
+        }
+    }
+    delete[] hit_used;
+    delete[] hit_candidates;
+    delete[] hit_h2_candidates;
+    delete[] tracks_to_follow;
+    delete[] weak_tracks;
+    delete[] tracklets;
 }
