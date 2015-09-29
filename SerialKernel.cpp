@@ -2,6 +2,7 @@
 #include <cfloat>
 #include <cmath>
 #include "KernelDefinitions.h"
+#include "SerialKernel.h"
 
 /**
 * @brief Fits hits to tracks.
@@ -496,7 +497,7 @@ void trackCreation(const float* const hit_Xs,
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-void serialSearchByTriplets(struct Track* const tracks, uint8_t* input) {
+void serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
 
 
     // Data initialization
