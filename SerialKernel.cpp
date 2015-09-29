@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cfloat>
 #include <cmath>
+#include "Logger.h"
 #include "KernelDefinitions.h"
 #include "SerialKernel.h"
 
@@ -497,7 +498,7 @@ void trackCreation(const float* const hit_Xs,
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-void serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
+int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
 
 
     // Data initialization
@@ -510,16 +511,20 @@ void serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
 
     // Pointers to data within the event
-    const int number_of_sensors = (const int) *input; input += sizeof(int);
-    const int number_of_hits = (const int) *input;    input += sizeof(int);
-    const int* const sensor_Zs = (const int*) input;  input += sizeof(int)*number_of_sensors;
-    const int* const sensor_hitStarts =  (const int*) input; input += sizeof(int)*number_of_sensors;
-    const int* const sensor_hitNums =  (const int*) input; input += sizeof(int)*number_of_sensors;
-    const unsigned int* const hit_IDs =  (const unsigned int*) input; input += sizeof(int)*number_of_hits;
-    const float* const hit_Xs =  (const float*) input; input += sizeof(float)*number_of_hits;
-    const float* const hit_Ys =  (const float*) input; input += sizeof(float)*number_of_hits;
-    const float* const hit_Zs =  (const float*) input;
 
+
+    const int number_of_sensors = *(uint32_t*)input; input += sizeof(uint32_t);
+    const int number_of_hits = *(uint32_t*)input;    input += sizeof(uint32_t);
+    const int* const sensor_Zs = (int*) input;  input += sizeof(int)*number_of_sensors;
+    const int* const sensor_hitStarts =  (int*) input; input += sizeof(int)*number_of_sensors;
+    const int* const sensor_hitNums =  (int*) input; input += sizeof(int)*number_of_sensors;
+    const unsigned int* const hit_IDs =  (uint32_t*) input; input += sizeof(uint32_t)*number_of_hits;
+    const float* const hit_Xs =  (float*) input; input += sizeof(float)*number_of_hits;
+    const float* const hit_Ys =  (float*) input; input += sizeof(float)*number_of_hits;
+    const float* const hit_Zs =  (float*) input;
+
+    DEBUG << "number of sensors: " << number_of_sensors << std::endl;
+    DEBUG << "number of hits: " << number_of_hits << std::endl;
     // Per event datatypes
     // OA: we pass a tracks pointer to be used in here.
     //__global struct Track* tracks = dev_tracks + tracks_offset;
@@ -677,4 +682,5 @@ void serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     delete[] tracks_to_follow;
     delete[] weak_tracks;
     delete[] tracklets;
+    return tracks_insertPointer;
 }

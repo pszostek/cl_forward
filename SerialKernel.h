@@ -34,7 +34,7 @@ void trackCreation(const float* const hit_Xs,
 
 
 
-void serialSearchByTriplets(struct Track* const tracks, const uint8_t* input); 
+int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input); 
 
 
 

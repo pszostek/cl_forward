@@ -20,7 +20,14 @@ int independent_execute(
   // Order input hits by X
   preorder_by_x(converted_input);
 
-  return gpuPixelSearchByTripletInvocation(converted_input, output);
+  if (mode == ExecMode::OpenCl) {
+      return gpuPixelSearchByTripletInvocation(converted_input, output);
+  } else if (mode == ExecMode::Serial){
+      return cpuPixelSearchByTripletSerialRun(converted_input, output);
+  } else {
+      DEBUG << "not yet implemented";
+      return 0;
+  }
 }
 
 void independent_post_execute(const std::vector<std::vector<uint8_t> > & output) {
@@ -80,10 +87,17 @@ int cpuPixelSearchByTripletSerialRun(
     // Each execution will return a different output
     output.resize(input.size());
 
-    for (int i = 0; input.size(); ++i) {
+    int numTracks = 0;
+    for (int i = 0; i < input.size(); ++i) {
+        DEBUG << "Processing event " << i << std::endl;
         Track *tracks = new Track[MAX_TRACKS];
-        serialSearchByTriplets(tracks, &(*(input[i]))[0]);
 
+        const std::vector<uint8_t>* event_input = input[i];
+        setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size());
+
+        numTracks = serialSearchByTriplets(tracks,(uint8_t*) &(*event_input)[0]);
+        DEBUG << "Done." << std::endl;
+        DEBUG << "Found " << numTracks << " tracks." << std::endl;
         delete[] tracks;
     }
 
