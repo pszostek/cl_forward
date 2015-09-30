@@ -536,8 +536,13 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
     bool* hit_used = new bool[number_of_hits];
-    int* hit_candidates = new int[number_of_hits];
-    int* hit_h2_candidates = new int[number_of_hits];
+    int* hit_candidates = new int[2 * number_of_hits];
+    int* hit_h2_candidates = new int[2 * number_of_hits];
+    for (int i = 0; i < 2*number_of_hits; ++i)
+    {
+        hit_candidates[i] = -1;
+        hit_h2_candidates[i] = -1;
+    }
 
     int* tracks_to_follow = new int[TTF_MODULO];
     int* weak_tracks = new int[number_of_hits];
