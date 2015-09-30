@@ -27,7 +27,9 @@
 
 void printUsage(char* argv[]){
     std::cerr << "Usage: "
-        << argv[0] << " <comma separated input filenames>"
+        << argv[0]
+        << " -serial|-ocl"
+        << " <comma separated input filenames>"
         << std::endl;
 }
 
@@ -118,18 +120,19 @@ void readFileIntoVector(std::string filename, std::vector<unsigned char> & outpu
  */
 int main(int argc, char *argv[])
 {
-    std::string filename;
+    std::string filename, mode_opt;
     int fileNumber = 1;
     std::string delimiter = ",";
     std::vector<std::vector<unsigned char> > input;
 
     // Get params (getopt independent)
-    if (argc != 2){
+    if (argc != 3){
         printUsage(argv);
         return 0;
     }
 
-    filename = std::string(argv[1]);
+    mode_opt = std::string(argv[1]);
+    filename = std::string(argv[2]);
 
     // Check how many files were specified and
     // call the entrypoint with the suggested format
@@ -168,7 +171,13 @@ int main(int argc, char *argv[])
 
     // Call offloaded algo
     std::vector<std::vector<unsigned char> > output;
-    independent_execute(input, output, ExecMode::OpenCl);
+    if (mode_opt.compare("-ocl") == 0) {
+        independent_execute(input, output, ExecMode::OpenCl);
+    } else if (mode_opt.compare("-serial") == 0) {
+        independent_execute(input, output, ExecMode::Serial);
+    } else {
+        std::cout << "Execution mode " << mode_opt << " not yet supported" << std::endl;
+    }
 
     // Post execution entrypoint
     independent_post_execute(output);
