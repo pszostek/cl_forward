@@ -540,6 +540,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     int* hit_h2_candidates = new int[2 * number_of_hits];
     for (int i = 0; i < 2*number_of_hits; ++i)
     {
+        hit_used[i/2] = false;
         hit_candidates[i] = -1;
         hit_h2_candidates[i] = -1;
     }
@@ -547,6 +548,11 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     int* tracks_to_follow = new int[TTF_MODULO];
     int* weak_tracks = new int[number_of_hits];
     struct Track* const tracklets = new Track[number_of_hits];
+    // TODO: replace by memset
+    for (int i = 0; i < TTF_MODULO; ++i)
+    {
+        tracks_to_follow[i] = 0;
+    }
 
     // Initialize variables according to event number and sensor side
     // Insert pointers (atomics)
@@ -634,7 +640,9 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         // Get the hits we are going to iterate onto in sh_hit_process,
         // in groups of max NUMTHREADS_X
 
-        for(int h0_index = sensor_data[0]; h0_index <         sensor_data[SENSOR_DATA_HITNUMS]; ++h0_index) {
+        for(int h0_index = sensor_data[0];
+            h0_index < sensor_data[0] + sensor_data[SENSOR_DATA_HITNUMS];
+            ++h0_index) {
             if (!hit_used[h0_index]) {
                 trackCreation(hit_Xs, hit_Ys, hit_Zs, sensor_data,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
