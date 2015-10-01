@@ -635,10 +635,12 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         // in groups of max NUMTHREADS_X
 
         for(int h0_index = sensor_data[0]; h0_index <         sensor_data[SENSOR_DATA_HITNUMS]; ++h0_index) {
-
-            trackCreation(hit_Xs, hit_Ys, hit_Zs, sensor_data,
-                hit_candidates, h0_index, hit_used, hit_h2_candidates,
-                tracklets_insertPointer, ttf_insertPointer, tracklets, tracks_to_follow);
+            if (!hit_used[h0_index]) {
+                trackCreation(hit_Xs, hit_Ys, hit_Zs, sensor_data,
+                    hit_candidates, h0_index, hit_used, hit_h2_candidates,
+                    tracklets_insertPointer, ttf_insertPointer, tracklets,
+                    tracks_to_follow);
+            }
         }
 
         first_sensor -= 1;
