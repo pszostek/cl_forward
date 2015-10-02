@@ -403,7 +403,8 @@ void trackCreation(
       printf("OCL: trackCreation\n");
     }
   // Track creation starts
-  unsigned int best_hit_h1, best_hit_h2;
+  unsigned int best_hit_h1 = 0;
+  unsigned int best_hit_h2 = 0;
   struct Hit h0, h1;
   int first_h1, first_h2, last_h2;
   float dymax;
