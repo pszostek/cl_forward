@@ -382,7 +382,8 @@ void trackCreation(const float* const hit_Xs,
 
     DEBUG << "trackCreation: " << h0_index << std::endl;
     // Track creation starts
-    unsigned int best_hit_h1, best_hit_h2;
+    unsigned int best_hit_h1 = 0;
+    unsigned int best_hit_h2 = 0;
     struct Hit h0, h1;
     int first_h1, first_h2, last_h2;
     float dymax;
@@ -463,12 +464,9 @@ void trackCreation(const float* const hit_Xs,
     // Add the track to the bag of tracks
     const unsigned int trackP = tracklets_insertPointer++;
     tracklets[trackP].hitsNum = 3;
-    unsigned int* const t_hits = tracklets[trackP].hits;
-    // TODO: OA, check this
-    // t_hits[0] = (unsigned int) sh_hit_process[get_local_id(0)];
-    t_hits[0] = (unsigned int) h0_index;
-    t_hits[1] = best_hit_h1;
-    t_hits[2] = best_hit_h2;
+    tracklets[trackP].hits[0] = h0_index;
+    tracklets[trackP].hits[1] = best_hit_h1;
+    tracklets[trackP].hits[2] = best_hit_h2;
 
     // Add the tracks to the bag of tracks to_follow
     // Note: The first bit flag marks this is a tracklet (hitsNum == 3),
