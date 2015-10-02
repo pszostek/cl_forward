@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cfloat>
 #include <cmath>
+#include <cassert>
 #include "Logger.h"
 #include "KernelDefinitions.h"
 #include "SerialKernel.h"
@@ -76,6 +77,7 @@ void fillCandidates(int* const hit_candidates,
 
         // Iterate in all hits in z0
         for (int h0_element=0; h0_element<sensor_hitNums[first_sensor]; ++h0_element) {
+            assert(h0_element < sensor_hitNums[first_sensor]);
             bool first_h1_found = false, last_h1_found = false;
             bool first_h2_found = false, last_h2_found = false;
             const int h0_index = sensor_hitStarts[first_sensor] + h0_element;
@@ -152,7 +154,7 @@ void fillCandidates(int* const hit_candidates,
                     }
 
                     if ((!process_h1_candidates || last_h1_found) &&
-                    (!process_h2_candidates || last_h2_found)) {
+                        (!process_h2_candidates || last_h2_found)) {
                         break;
                     }
                 }
@@ -210,6 +212,7 @@ void trackForwarding(const float* const hit_Xs,
         struct Track t;
         struct Hit h0;
         // The logic is broken in two parts for shared memory loading
+        DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
         const bool ttf_condition = ttf_element < diff_ttf;
         if (ttf_condition) {
             // OA: tracks_to_follow is limited to TTF_MODULO elements.
@@ -220,12 +223,17 @@ void trackForwarding(const float* const hit_Xs,
             const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
             skipped_modules = (fulltrackno & 0x70000000) >> 28;
             trackno = fulltrackno & 0x0FFFFFFF;
-
+            if (track_flag) {
+                DEBUG << "tracklets" << std::endl;
+            } else {
+                DEBUG << "tracks" << std::endl;
+            }
             const struct Track* const track_pointer = track_flag ? tracklets : tracks;
 
             ASSERT(track_pointer==tracklets ? trackno < number_of_hits : true)
             ASSERT(track_pointer==tracks ? trackno < MAX_TRACKS : true)
             t = track_pointer[trackno];
+            DEBUG << "trackno: " << trackno << " hitsNum " << t.hitsNum << std::endl;
 
             // Load last two hits in h0, h1
             const int t_hitsNum = t.hitsNum;
@@ -308,7 +316,7 @@ void trackForwarding(const float* const hit_Xs,
                     // we have to allocate it in the tracks pointer
                     // XXX OA: no more atomic_add needed
                     //trackno = atomic_add(tracks_insertPointer, 1);
-                    trackno = ++tracks_insertPointer;
+                    trackno = tracks_insertPointer++;
                 }
 
                 // Copy the track into tracks
@@ -318,7 +326,7 @@ void trackForwarding(const float* const hit_Xs,
                 // Add the tracks to the bag of tracks to_follow
                 // XXX OA: no more atomic_add needed
                 //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-                tracks_to_follow[++ttf_insertPointer % TTF_MODULO] = trackno;
+                tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
             }
             // A track just skipped a module
             // We keep it for another round
@@ -328,13 +336,13 @@ void trackForwarding(const float* const hit_Xs,
 
                 // Add the tracks to the bag of tracks to_follow
                 //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-                tracks_to_follow[++ttf_insertPointer] = trackno;
+                tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
             }
             // If there are only three hits in this track,
             // mark it as "doubtful"
             else if (t.hitsNum == 3) {
                 //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
-                weak_tracks[++weaktracks_insertPointer] = trackno;
+                weak_tracks[weaktracks_insertPointer++] = trackno;
                 ASSERT(weaktracks_insertPointer < number_of_hits)
             }
             // In the "else" case, we couldn't follow up the track,
@@ -372,6 +380,7 @@ void trackCreation(const float* const hit_Xs,
         int& tracklets_insertPointer, int&  ttf_insertPointer,
         struct Track* const tracklets, int* const tracks_to_follow) {
 
+    DEBUG << "trackCreation: " << h0_index << std::endl;
     // Track creation starts
     unsigned int best_hit_h1, best_hit_h2;
     struct Hit h0, h1;
@@ -380,7 +389,6 @@ void trackCreation(const float* const hit_Xs,
 
     unsigned int num_h1_to_process = 0;
     float best_fit = MAX_FLOAT;
-    float best_of_all = MAX_FLOAT;
 
     // We will repeat this for performance reasons
     h0.x = hit_Xs[h0_index];
@@ -396,9 +404,7 @@ void trackCreation(const float* const hit_Xs,
     first_h1 = hit_candidates[2 * h0_index];
     const int last_h1 = hit_candidates[2 * h0_index + 1];
     num_h1_to_process = last_h1 - first_h1;
-
     // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
-    // TODO OA: get rid of max_numhits. Now just iterate up to num_h1_to_process
     for (int h1_element=0; h1_element < num_h1_to_process; ++h1_element) {
         int h1_index = first_h1 + h1_element;
         bool is_h1_used = hit_used[h1_index];
@@ -414,9 +420,9 @@ void trackCreation(const float* const hit_Xs,
 
         first_h2 = hit_h2_candidates[2 * h1_index];
         last_h2 = hit_h2_candidates[2 * h1_index + 1];
+        DEBUG << "first_h2 " << first_h2 << std::endl;
         // In case there be no h2 to process,
         // we can preemptively prevent further processing
-        // TODO OA: hit_h2_candidates should be initialized to -1 (?)
         //inside_bounds &= first_h2 != -1;
 
         // Iterate in the third list of hits
@@ -448,9 +454,6 @@ void trackCreation(const float* const hit_Xs,
                 best_hit_h1 = fit_is_better * (h1_index) + !fit_is_better * best_hit_h1;
                 best_hit_h2 = fit_is_better * (h2_index) + !fit_is_better * best_hit_h2;
             }
-            if (best_fit < best_of_all) {
-                best_of_all = best_fit;
-            }
         }
     }
 
@@ -458,7 +461,7 @@ void trackCreation(const float* const hit_Xs,
     // Fill in track information
 
     // Add the track to the bag of tracks
-    const unsigned int trackP = ++tracklets_insertPointer;
+    const unsigned int trackP = tracklets_insertPointer++;
     tracklets[trackP].hitsNum = 3;
     unsigned int* const t_hits = tracklets[trackP].hits;
     // TODO: OA, check this
@@ -470,8 +473,9 @@ void trackCreation(const float* const hit_Xs,
     // Add the tracks to the bag of tracks to_follow
     // Note: The first bit flag marks this is a tracklet (hitsNum == 3),
     // and hence it is stored in tracklets
-    const unsigned int ttfP = ++ttf_insertPointer % TTF_MODULO;
+    const unsigned int ttfP = ttf_insertPointer++ % TTF_MODULO;
     tracks_to_follow[ttfP] = 0x80000000 | trackP;
+    DEBUG << "updated tracks_to_follow " << trackP << std::endl;
 }
 
 /**
@@ -580,10 +584,12 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     // Not needed anymore
     //const int cond_sh_hit_mult = min((int) get_local_size(1), SH_HIT_MULT);
     //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
-
-    fillCandidates(hit_candidates, hit_h2_candidates, number_of_sensors, sensor_hitStarts, sensor_hitNums,
-    hit_Xs, hit_Ys, hit_Zs, sensor_Zs);
-
+    fillCandidates(hit_candidates, hit_h2_candidates, number_of_sensors,
+            sensor_hitStarts, sensor_hitNums,
+            hit_Xs, hit_Ys, hit_Zs, sensor_Zs);
+    /*for (int i = 0; i < 2*number_of_hits; ++i)
+        DEBUG << hit_h2_candidates[i] << ", ";
+    DEBUG << std::endl;*/
     // Deal with odd or even in the same thread
     int first_sensor = number_of_sensors - 1;
 
@@ -624,7 +630,9 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         prev_ttf = last_ttf;
         last_ttf = ttf_insertPointer;
         const unsigned int diff_ttf = last_ttf - prev_ttf;
-
+        DEBUG << "diff_ttf: " << diff_ttf << std::endl;
+        DEBUG << "prev_ttf: " << prev_ttf << std::endl;
+        DEBUG << "last_ttf: " << last_ttf << std::endl;
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         // 2a. Track forwarding
@@ -640,6 +648,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         // Get the hits we are going to iterate onto in sh_hit_process,
         // in groups of max NUMTHREADS_X
 
+        DEBUG << "sensor_data[0]: " << sensor_data[0] << std::endl;
         for(int h0_index = sensor_data[0];
             h0_index < sensor_data[0] + sensor_data[SENSOR_DATA_HITNUMS];
             ++h0_index) {
@@ -668,7 +677,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         // Here we are only interested in three-hit tracks,
         // to mark them as "doubtful"
         if (track_flag) {
-            const unsigned int weakP = ++weaktracks_insertPointer;
+            const unsigned int weakP = weaktracks_insertPointer++;
             ASSERT(weakP < number_of_hits)
             weak_tracks[weakP] = trackno;
         }
@@ -686,7 +695,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         if (!hit_used[t.hits[0]] &&
             !hit_used[t.hits[1]] &&
             !hit_used[t.hits[2]]) {
-            const unsigned int trackno = ++tracks_insertPointer;
+            const unsigned int trackno = tracks_insertPointer++;
             ASSERT(trackno < MAX_TRACKS)
             tracks[trackno] = t;
         }
