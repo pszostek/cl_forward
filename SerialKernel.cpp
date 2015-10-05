@@ -208,7 +208,8 @@ void trackForwarding(const float* const hit_Xs,
 
         // These variables need to go here, shared memory and scope requirements
         float tx, ty, h1_z;
-        unsigned int trackno, fulltrackno, skipped_modules, best_hit_h2;
+        unsigned int trackno, fulltrackno, skipped_modules;
+        unsigned int best_hit_h2 = 0;
         struct Track t;
         struct Hit h0;
         // The logic is broken in two parts for shared memory loading
