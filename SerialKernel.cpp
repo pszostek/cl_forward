@@ -225,17 +225,12 @@ void trackForwarding(const float* const hit_Xs,
             const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
             skipped_modules = (fulltrackno & 0x70000000) >> 28;
             trackno = fulltrackno & 0x0FFFFFFF;
-            if (track_flag) {
-                DEBUG << "tracklets" << std::endl;
-            } else {
-                DEBUG << "tracks" << std::endl;
-            }
+
             const struct Track* const track_pointer = track_flag ? tracklets : tracks;
 
             ASSERT(track_pointer==tracklets ? trackno < number_of_hits : true)
             ASSERT(track_pointer==tracks ? trackno < MAX_TRACKS : true)
             t = track_pointer[trackno];
-            DEBUG << "trackno: " << trackno << " hitsNum " << t.hitsNum << std::endl;
 
             // Load last two hits in h0, h1
             const int t_hitsNum = t.hitsNum;
@@ -421,64 +416,68 @@ void trackCreation(const float* const hit_Xs,
             h1.z = hit_Zs[h1_index];
 
             dz_inverted = 1.f / (h1.z - h0.z);
-        }
 
-        int first_h2 = hit_h2_candidates[2 * h1_index];
-        // PS: The following variable is removed, since it's never used
-        //last_h2 = hit_h2_candidates[2 * h1_index + 1];
-        DEBUG << "first_h2 " << first_h2 << std::endl;
-        // In case there be no h2 to process,
-        // we can preemptively prevent further processing
-        //inside_bounds &= first_h2 != -1;
+            //int first_h2 = hit_h2_candidates[2 * h1_index];
+            // PS: The following variable is removed, since it's never used
+            //last_h2 = hit_h2_candidates[2 * h1_index + 1];
+            //DEBUG << "first_h2 " << first_h2 << std::endl;
 
-        // Iterate in the third list of hits
-        // Tiled memory access on h2
-        for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
-            const int h2_index = sensor_data[2] + k;
-            struct Hit h2;
-            h2.x = hit_Xs[h2_index];
-            h2.y = hit_Ys[h2_index];
-            h2.z = hit_Zs[h2_index];
+            // In case there be no h2 to process,
+            // we can preemptively prevent further processing
+            //inside_bounds &= first_h2 != -1;
 
-            // Predictions of x and y for this hit
-            const float z2_tz = (h2.z - h0.z) * dz_inverted;
-            const float x = h0.x + (h1.x - h0.x) * z2_tz;
-            const float y = h0.y + (h1.y - h0.y) * z2_tz;
-            const float dx = x - h2.x;
-            const float dy = y - h2.y;
+            // Iterate in the third list of hits
+            // Tiled memory access on h2
+            for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
+                const int h2_index = sensor_data[2] + k;
+                struct Hit h2;
+                h2.x = hit_Xs[h2_index];
+                h2.y = hit_Ys[h2_index];
+                h2.z = hit_Zs[h2_index];
 
-            if (std::abs(h1.y - h0.y) < dymax && std::abs(dx) < PARAM_TOLERANCE && std::abs(dy) < PARAM_TOLERANCE) {
-                // Calculate fit
-                const float scatterNum = (dx * dx) + (dy * dy);
-                const float scatterDenom = 1.f / (h2.z - h1.z);
-                const float scatter = scatterNum * scatterDenom * scatterDenom;
-                const bool condition = scatter < MAX_SCATTER;
-                const float fit = condition * scatter + !condition * MAX_FLOAT;
+                // Predictions of x and y for this hit
+                const float z2_tz = (h2.z - h0.z) * dz_inverted;
+                const float x = h0.x + (h1.x - h0.x) * z2_tz;
+                const float y = h0.y + (h1.y - h0.y) * z2_tz;
+                const float dx = x - h2.x;
+                const float dy = y - h2.y;
+                if (std::abs(h1.y - h0.y) < dymax &&
+                        std::abs(dx) < PARAM_TOLERANCE &&
+                        std::abs(dy) < PARAM_TOLERANCE) {
+                    // Calculate fit
+                    const float scatterNum = (dx * dx) + (dy * dy);
+                    const float scatterDenom = 1.f / (h2.z - h1.z);
+                    const float scatter = scatterNum * scatterDenom * scatterDenom;
+                    const bool condition = scatter < MAX_SCATTER;
+                    const float fit = condition * scatter + !condition * MAX_FLOAT;
 
-                const bool fit_is_better = fit < best_fit;
-                best_fit = fit_is_better * fit + !fit_is_better * best_fit;
-                best_hit_h1 = fit_is_better * (h1_index) + !fit_is_better * best_hit_h1;
-                best_hit_h2 = fit_is_better * (h2_index) + !fit_is_better * best_hit_h2;
+                    const bool fit_is_better = fit < best_fit;
+                    best_fit = fit_is_better * fit + !fit_is_better * best_fit;
+                    best_hit_h1 = fit_is_better * (h1_index) + !fit_is_better * best_hit_h1;
+                    best_hit_h2 = fit_is_better * (h2_index) + !fit_is_better * best_hit_h2;
+                }
             }
         }
     }
 
-    // We have a best fit! - haven't we?
-    // Fill in track information
+    if (best_fit < MAX_FLOAT) {
+        // We have a best fit! - haven't we?
+        // Fill in track information
 
-    // Add the track to the bag of tracks
-    const unsigned int trackP = tracklets_insertPointer++;
-    tracklets[trackP].hitsNum = 3;
-    tracklets[trackP].hits[0] = h0_index;
-    tracklets[trackP].hits[1] = best_hit_h1;
-    tracklets[trackP].hits[2] = best_hit_h2;
+        // Add the track to the bag of tracks
+        const unsigned int trackP = tracklets_insertPointer++;
+        tracklets[trackP].hitsNum = 3;
+        tracklets[trackP].hits[0] = h0_index;
+        tracklets[trackP].hits[1] = best_hit_h1;
+        tracklets[trackP].hits[2] = best_hit_h2;
 
-    // Add the tracks to the bag of tracks to_follow
-    // Note: The first bit flag marks this is a tracklet (hitsNum == 3),
-    // and hence it is stored in tracklets
-    const unsigned int ttfP = ttf_insertPointer++ % TTF_MODULO;
-    tracks_to_follow[ttfP] = 0x80000000 | trackP;
-    DEBUG << "updated tracks_to_follow " << trackP << std::endl;
+        // Add the tracks to the bag of tracks to_follow
+        // Note: The first bit flag marks this is a tracklet (hitsNum == 3),
+        // and hence it is stored in tracklets
+        const unsigned int ttfP = ttf_insertPointer++ % TTF_MODULO;
+        tracks_to_follow[ttfP] = 0x80000000 | trackP;
+        DEBUG << "updated tracks_to_follow " << trackP << std::endl;
+    }
 }
 
 /**
