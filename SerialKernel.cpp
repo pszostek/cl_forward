@@ -78,10 +78,7 @@ void fillCandidates(int* const hit_candidates,
         // Iterate in all hits in z0
         for (int h0_element=0; h0_element<sensor_hitNums[first_sensor]; ++h0_element) {
             assert(h0_element < sensor_hitNums[first_sensor]);
-            bool first_h1_found = false, last_h1_found = false;
-            bool first_h2_found = false, last_h2_found = false;
             const int h0_index = sensor_hitStarts[first_sensor] + h0_element;
-            int h1_index;
             struct Hit h0;
             h0.x = hit_Xs[h0_index];
             h0.z = hit_Zs[h0_index];
@@ -109,9 +106,12 @@ void fillCandidates(int* const hit_candidates,
             }
 
             if (first_sensor >= 4) {
+                bool first_h1_found = false, last_h1_found = false;
+                bool first_h2_found = false, last_h2_found = false;
+
                 // Iterate in all hits in z1
                 for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
-                    h1_index = hitstarts_s2 + h1_element;
+                    int h1_index = hitstarts_s2 + h1_element;
                     struct Hit h1;
                     h1.x = hit_Xs[h1_index];
                     h1.z = hit_Zs[h1_index];
@@ -423,7 +423,7 @@ void trackCreation(const float* const hit_Xs,
             dz_inverted = 1.f / (h1.z - h0.z);
         }
 
-        first_h2 = hit_h2_candidates[2 * h1_index];
+        int first_h2 = hit_h2_candidates[2 * h1_index];
         // PS: The following variable is removed, since it's never used
         //last_h2 = hit_h2_candidates[2 * h1_index + 1];
         DEBUG << "first_h2 " << first_h2 << std::endl;

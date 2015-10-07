@@ -87,8 +87,8 @@ int cpuPixelSearchByTripletSerialRun(
     // Each execution will return a different output
     output.resize(input.size());
 
-    int numTracks = 0;
     for (int i = 0; i < input.size(); ++i) {
+        int numTracks = 0;
         DEBUG << "Processing event " << i << std::endl;
         Track *tracks = new Track[MAX_TRACKS];
 
