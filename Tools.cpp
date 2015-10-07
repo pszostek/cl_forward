@@ -243,7 +243,8 @@ switch(error){
 
 void clChoosePlatform(cl_device_id*& devices, cl_platform_id& platform) {
   // Choose the first available platform
-  cl_platform_id* clPlatformIDs;
+  // PS: removed, since never used
+  // cl_platform_id* clPlatformIDs;
   cl_uint numPlatforms;
   clCheck(clGetPlatformIDs(0, NULL, &numPlatforms));
   if(numPlatforms > 0)

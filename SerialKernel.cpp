@@ -214,6 +214,7 @@ void trackForwarding(const float* const hit_Xs,
         struct Hit h0;
         // The logic is broken in two parts for shared memory loading
         DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
+        // TODO: PS: will ttf_condition ever be evaluated to false? Look at the for-loop cond.
         const bool ttf_condition = ttf_element < diff_ttf;
         if (ttf_condition) {
             // OA: tracks_to_follow is limited to TTF_MODULO elements.
@@ -386,7 +387,9 @@ void trackCreation(const float* const hit_Xs,
     unsigned int best_hit_h1 = 0;
     unsigned int best_hit_h2 = 0;
     struct Hit h0, h1;
-    int first_h1, first_h2, last_h2;
+    int first_h1;
+    // PS: Removed, since never used
+    // int last_h2;
     float dymax;
 
     unsigned int num_h1_to_process = 0;
@@ -421,7 +424,8 @@ void trackCreation(const float* const hit_Xs,
         }
 
         first_h2 = hit_h2_candidates[2 * h1_index];
-        last_h2 = hit_h2_candidates[2 * h1_index + 1];
+        // PS: The following variable is removed, since it's never used
+        //last_h2 = hit_h2_candidates[2 * h1_index + 1];
         DEBUG << "first_h2 " << first_h2 << std::endl;
         // In case there be no h2 to process,
         // we can preemptively prevent further processing
@@ -521,7 +525,9 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     const int* const sensor_Zs = (int*) input;  input += sizeof(int)*number_of_sensors;
     const int* const sensor_hitStarts =  (int*) input; input += sizeof(int)*number_of_sensors;
     const int* const sensor_hitNums =  (int*) input; input += sizeof(int)*number_of_sensors;
-    const unsigned int* const hit_IDs =  (uint32_t*) input; input += sizeof(uint32_t)*number_of_hits;
+    // PS: Removed since never used
+    // const unsigned int* const hit_IDs =  (uint32_t*) input;
+    input += sizeof(uint32_t)*number_of_hits;
     const float* const hit_Xs =  (float*) input; input += sizeof(float)*number_of_hits;
     const float* const hit_Ys =  (float*) input; input += sizeof(float)*number_of_hits;
     const float* const hit_Zs =  (float*) input;
@@ -576,7 +582,8 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
 
     // The fun begins
     // XXX OA: what's this for?
-    int sh_hit_process [NUMTHREADS_X];
+    // PS: Removed since never used
+    // int sh_hit_process [NUMTHREADS_X];
     int sensor_data [6];
 
     // OA: This is used for coordinating between OpenCL threads within a group.
