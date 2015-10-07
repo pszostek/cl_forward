@@ -36,11 +36,11 @@
 
 #define PRINT_SOLUTION true
 #define PRINT_VERBOSE true
-#define ASSERTS_ENABLED false
+#define ASSERTS_ENABLED true
 
 #if ASSERTS_ENABLED == true
-#include "assert.h"
-#define ASSERT(EXPR) ASSERT_CL_RETURN(EXPR, #EXPR);
+#include <cassert>
+#define ASSERT(EXPR) assert(EXPR);
 #else
 #define ASSERT(EXPR)
 #endif
