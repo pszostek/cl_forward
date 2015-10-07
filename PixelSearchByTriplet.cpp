@@ -10,7 +10,7 @@ int independent_execute(
   std::vector<const std::vector<uint8_t>* > converted_input;
   converted_input.resize(input.size());
 
-  for (int i=0; i<input.size(); ++i) {
+  for (unsigned int i=0; i<input.size(); ++i) {
     converted_input[i] = &(input[i]);
   }
 
@@ -62,7 +62,7 @@ int gpuPixelSearchByTripletInvocation(
   // Execute maximum n number of events every time
   const int max_events_to_process_per_kernel = 16000;
 
-  for (int i=0; i<input.size(); i+=max_events_to_process_per_kernel){
+  for (unsigned int i=0; i<input.size(); i+=max_events_to_process_per_kernel){
     int events_to_process = input.size() - i;
     if (events_to_process > max_events_to_process_per_kernel)
       events_to_process = max_events_to_process_per_kernel;
@@ -87,7 +87,7 @@ int cpuPixelSearchByTripletSerialRun(
     // Each execution will return a different output
     output.resize(input.size());
 
-    for (int i = 0; i < input.size(); ++i) {
+    for (unsigned int i = 0; i < input.size(); ++i) {
         int numTracks = 0;
         DEBUG << "Processing event " << i << std::endl;
         Track *tracks = new Track[MAX_TRACKS];

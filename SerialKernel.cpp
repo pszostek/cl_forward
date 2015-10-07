@@ -204,7 +204,7 @@ void trackForwarding(const float* const hit_Xs,
         const unsigned int prev_ttf, struct Track* const tracklets,
         struct Track* const tracks, const int number_of_hits) {
 
-    for (int ttf_element=0; ttf_element<diff_ttf; ++ttf_element) {
+    for (unsigned int ttf_element=0; ttf_element<diff_ttf; ++ttf_element) {
 
         // These variables need to go here, shared memory and scope requirements
         float tx, ty, h1_z;
@@ -410,7 +410,7 @@ void trackCreation(const float* const hit_Xs,
     const int last_h1 = hit_candidates[2 * h0_index + 1];
     num_h1_to_process = last_h1 - first_h1;
     // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
-    for (int h1_element=0; h1_element < num_h1_to_process; ++h1_element) {
+    for (unsigned int h1_element=0; h1_element < num_h1_to_process; ++h1_element) {
         int h1_index = first_h1 + h1_element;
         bool is_h1_used = hit_used[h1_index];
         float dz_inverted;
@@ -674,7 +674,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     const unsigned int diff_ttf = last_ttf - prev_ttf;
 
     // Process the last bunch of track_to_follows
-    for (int ttf_element = 0; ttf_element< diff_ttf; ++ttf_element) {
+    for (unsigned int ttf_element = 0; ttf_element< diff_ttf; ++ttf_element) {
 
         const int fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
         const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
@@ -691,7 +691,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
 
     // Compute the three-hit tracks left
     const unsigned int weaktracks_total = weaktracks_insertPointer;
-    for (int weaktrack_no = 0; weaktrack_no < weaktracks_total; ++weaktrack_no) {
+    for (unsigned int weaktrack_no = 0; weaktrack_no < weaktracks_total; ++weaktrack_no) {
 
         // Load the tracks from the tracklets
         const struct Track t = tracklets[weak_tracks[weaktrack_no]];
