@@ -1,0 +1,30 @@
+CC=g++
+CFLAGS=-c -Wall -std=c++11 -Wc++11-compat
+LDFLAGS=-L/usr/lib/x86_64-linux-gnu -lOpenCL
+SOURCES=PixelSearchByTriplet.cpp \
+		GpuKernelInvoker.cpp \
+		Tools.cpp \
+		IndependentEntrypoint.cpp \
+		Logger.cpp \
+		SerialKernel.cpp
+
+OBJECTS=$(SOURCES:.cpp=.o)
+EXECUTABLE=clpixel
+
+all: $(SOURCES) $(EXECUTABLE)
+	    
+$(EXECUTABLE): $(OBJECTS) 
+	    $(CC) $(OBJECTS) $(LDFLAGS) -o $@
+
+.cpp.o:
+	    $(CC) $(CFLAGS) $< -o $@
+
+.PHONY: clean check
+
+check:
+	cppcheck . $(SOURCES) --force --enable=all
+		
+
+clean:
+		rm -rf $(OBJECTS) $(EXECUTABLE)
+
