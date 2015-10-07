@@ -79,9 +79,10 @@ void readFileIntoVector(std::string filename, std::vector<unsigned char> & outpu
     std::ifstream infile (filename.c_str(), std::ifstream::binary);
 
     // get size of file
-    infile.seekg(0, std::ifstream::end);
-    int size = infile.tellg();
-    infile.seekg(0);
+    // PS: removed, since never used
+    // infile.seekg(0, std::ifstream::end);
+    // int size = infile.tellg();
+    // infile.seekg(0);
 
     // Read format expected:
     //  int funcNameLen
@@ -121,7 +122,8 @@ void readFileIntoVector(std::string filename, std::vector<unsigned char> & outpu
 int main(int argc, char *argv[])
 {
     std::string filename, mode_opt;
-    int fileNumber = 1;
+    // PS: removed, since never used
+    // int fileNumber = 1;
     std::string delimiter = ",";
     std::vector<std::vector<unsigned char> > input;
 
@@ -144,10 +146,10 @@ int main(int argc, char *argv[])
 
     size_t numberOfOcurrences = std::count(filename.begin(), filename.end(), ',') + 1;
     input.resize(numberOfOcurrences);
-    int input_index = 0;
 
     size_t posFound = filename.find(delimiter);
     if (posFound != std::string::npos){
+        int input_index = 0;
         size_t prevFound = 0;
         while(prevFound != std::string::npos){
             if (posFound == std::string::npos){
