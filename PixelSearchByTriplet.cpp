@@ -2,6 +2,17 @@
 #include "PixelSearchByTriplet.h"
 #include "SerialKernel.h"
 
+extern int*   h_no_sensors;
+extern int*   h_no_hits;
+extern int*   h_sensor_Zs;
+extern int*   h_sensor_hitStarts;
+extern int*   h_sensor_hitNums;
+extern unsigned int* h_hit_IDs;
+extern float* h_hit_Xs;
+extern float* h_hit_Ys;
+extern float* h_hit_Zs; 
+
+
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
     std::vector<std::vector<uint8_t> > & output,
@@ -98,6 +109,38 @@ int cpuPixelSearchByTripletSerialRun(
         numTracks = serialSearchByTriplets(tracks,(uint8_t*) &(*event_input)[0]);
         DEBUG << "Done." << std::endl;
         DEBUG << "Found " << numTracks << " tracks." << std::endl;
+
+
+
+
+      // Calculate z to sensor map
+      std::map<int, int> zhit_to_module;
+      setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size());
+      int number_of_sensors = *h_no_sensors;
+        // map to convert from z of hit to module
+      for(int j=0; j<number_of_sensors; ++j){
+          const int z = h_sensor_Zs[j];
+          zhit_to_module[z] = j;
+      }
+      // Some hits z may not correspond to a sensor's,
+      // but be close enough
+      for(int j=0; j<*h_no_hits; ++j){
+          const int z = (int) h_hit_Zs[j];
+          if (zhit_to_module.find(z) == zhit_to_module.end()){
+            const int sensor = findClosestModule(z, zhit_to_module);
+            zhit_to_module[z] = sensor;
+          }
+      }
+
+
+        // Print to output file with event no.
+        std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string("_serial.out"));
+        DEBUG << "writing to: " << std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string("_serial.out") << std::endl;
+        for(int j=0; j<numTracks; ++j){
+            printTrack(tracks, j, zhit_to_module, outfile);
+        }
+        outfile.close();
+
         delete[] tracks;
     }
 
