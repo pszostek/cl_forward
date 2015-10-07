@@ -272,6 +272,7 @@ int invokeParallelSearch(
 
   free(atomics);
   free(devices);
+  free(hit_candidates);
 
   return 0;
 }
