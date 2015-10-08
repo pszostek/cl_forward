@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+
+
+
+
+
+class Hit(object):
+    """Hit instances store all relevant information of hits from the track"""
+
+    def __init__(self, hitline):
+        """Reads a hit line from the cl_forward output file and creates a Hit object"""
+        fields = hitline.strip().split()
+        self.hitID = int(fields[0])
+        self.hitNum = int(fields[1][1:-1])
+        self.x = float(fields[5][:-1])
+        self.y = float(fields[7][:-1])
+        self.z = float(fields[9])
+
+    def __str__(self):
+        return "%d (%d): x = %g, y = %g, z = %g"%(self.hitID, self.hitNum, self.x, self.y, self.z)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class Track(object):
+    """Track instances hold all information needed to reconstruct a track, that
+    includes also all the hits that make up this track"""
+
+    def __init__(self, lines):
+        """Takes a section of cl_forward output file that contains all the track hits"""
+        self.hits = []
+        for line in lines:
+            hit = Hit(line)
+            self.hits.append(hit)
+
+    def __str__(self):
+        s = 'Track length: %d'%(len(self.hits))
+        for hit in self.hits:
+            s += '\n' + str(hit)
+        return s
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            if len(self.hits) != len(other.hits):
+                return False
+            eq = True
+            for i, h in enumerate(self.hits):
+                eq = eq and (h == other.hits[i])
+            return eq
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+def read_trackfile(filename):
+    """A simple cl_forward output file parser."""
+    tracks = []
+    with open(filename) as tf:
+        line = tf.readline()
+        while line:
+            if line.startswith('Track'):
+                tlen = int(line.strip().split()[-1])
+                tracklines = []
+                for _ in xrange(tlen):
+                    tracklines.append(tf.readline())
+                track = Track(tracklines)
+                tracks.append(track)
+            line = tf.readline()
+    return tracks
+
+def main():
+    """The main functiln"""
+    trackfile1 = "results_baseline/0.out"
+    tracks1 = read_trackfile(trackfile1)
+    trackfile2 = "bin/x86_64/Debug/results/0_serial.out"
+    tracks2 = read_trackfile(trackfile2)
+
+if __name__ == "__main__":
+    main()
