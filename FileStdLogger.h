@@ -22,7 +22,9 @@ class FileStdLogger : public std::ostream {
 private:
     std::streambuf* b;
 public:
-    //FileStdLogger() : std::ostream(b) {}
+    // OA: NB this is just dirty, but the whole thing should be rewritten...
+    FileStdLogger() : std::ostream(nullptr) {}
+private:
 };
 
 // Can't believe this is so simple
