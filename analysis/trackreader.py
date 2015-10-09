@@ -19,6 +19,9 @@ class Hit(object):
     def __str__(self):
         return "%d (%d): x = %g, y = %g, z = %g"%(self.hitID, self.hitNum, self.x, self.y, self.z)
 
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__, self.__dict__)
+
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
@@ -33,18 +36,22 @@ class Track(object):
     """Track instances hold all information needed to reconstruct a track, that
     includes also all the hits that make up this track"""
 
-    def __init__(self, lines):
+    def __init__(self, tid, lines):
         """Takes a section of cl_forward output file that contains all the track hits"""
+        self.tid = tid
         self.hits = []
         for line in lines:
             hit = Hit(line)
             self.hits.append(hit)
 
     def __str__(self):
-        s = 'Track length: %d'%(len(self.hits))
+        s = 'Track (#%d) length: %d'%(self.tid,len(self.hits))
         for hit in self.hits:
             s += '\n' + str(hit)
         return s
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__, self.__dict__)
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -67,11 +74,12 @@ def read_trackfile(filename):
         line = tf.readline()
         while line:
             if line.startswith('Track'):
+                tid = int(line.strip().split()[1][1:-1])
                 tlen = int(line.strip().split()[-1])
                 tracklines = []
                 for _ in xrange(tlen):
                     tracklines.append(tf.readline())
-                track = Track(tracklines)
+                track = Track(tid,tracklines)
                 tracks.append(track)
             line = tf.readline()
     return tracks
@@ -82,6 +90,13 @@ def main():
     tracks1 = read_trackfile(trackfile1)
     trackfile2 = "bin/x86_64/Debug/results/0_serial.out"
     tracks2 = read_trackfile(trackfile2)
+
+    for i,t2 in enumerate(tracks2):
+        eq = False
+        for k,t1 in enumerate(tracks1):
+            eq = eq or (t1 == t2)
+        if not eq:
+            print(t2)
 
 if __name__ == "__main__":
     main()
