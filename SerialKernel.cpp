@@ -213,7 +213,7 @@ void trackForwarding(const float* const hit_Xs,
         struct Track t;
         struct Hit h0;
         // The logic is broken in two parts for shared memory loading
-        DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
+
         // TODO: PS: will ttf_condition ever be evaluated to false? Look at the for-loop cond.
         const bool ttf_condition = ttf_element < diff_ttf;
         if (ttf_condition) {
@@ -239,6 +239,7 @@ void trackForwarding(const float* const hit_Xs,
             const int h1_num = t.hits[t_hitsNum - 1];
 
             ASSERT(h0_num < number_of_hits)
+            ///DEBUG << "h0_num " << h0_num << " h1_num " << h1_num << std::endl;
             h0.x = hit_Xs[h0_num];
             h0.y = hit_Ys[h0_num];
             h0.z = hit_Zs[h0_num];
