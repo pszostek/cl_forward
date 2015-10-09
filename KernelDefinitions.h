@@ -36,7 +36,7 @@
 
 #define PRINT_SOLUTION true
 #define PRINT_VERBOSE true
-#define ASSERTS_ENABLED true
+#define ASSERTS_ENABLED false
 
 #if ASSERTS_ENABLED == true
 #include <cassert>
