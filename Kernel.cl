@@ -398,10 +398,7 @@ void trackCreation(
   __global bool* const hit_used, __global int* const hit_h2_candidates, const int blockDim_sh_hit, __global float* const best_fits,
   __global int* const tracklets_insertPointer, __global int* const ttf_insertPointer,
   __global struct Track* const tracklets, __global int* const tracks_to_follow) {
-    barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-    if (get_local_id(0) == 0 && get_local_id(1) == 0) {
-      printf("OCL: trackCreation\n");
-    }
+
   // Track creation starts
   unsigned int best_hit_h1 = 0;
   unsigned int best_hit_h2 = 0;
@@ -568,7 +565,6 @@ void trackCreation(
     // and hence it is stored in tracklets
     const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
     tracks_to_follow[ttfP] = 0x80000000 | trackP;
-    printf("OCL: updated tracks_to_follow %d\n", trackP);
   }
 }
 
@@ -703,14 +699,6 @@ __kernel void clSearchByTriplets(__global struct Track* const dev_tracks, __glob
     const unsigned int diff_ttf = last_ttf - prev_ttf;
 
     barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-  // --- print block ----
-  barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-  if (get_local_id(0) == 0 && get_local_id(1) == 0) {
-    printf("OCL: diff_ttf %d\n", diff_ttf);
-    printf("OCL: prev_ttf %d\n", prev_ttf);
-    printf("OCL: last_ttf %d\n", last_ttf);
-  }
-  // --- print block end ----
 
     // 2a. Track forwarding
     trackForwarding(
