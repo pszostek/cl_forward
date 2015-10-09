@@ -141,7 +141,7 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     # Note: "rt" is not present on mingw
     if( UNIX )
 		if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-			set( COMPILER_FLAGS " -g " )
+      set( COMPILER_FLAGS " -g -Wall" )
 		endif( )
         set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} "rt" )
     endif( )
@@ -166,6 +166,9 @@ elseif( MSVC )
 endif( )
 
 set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_GXX} -std=c++11 " )
+if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+  set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_GXX} -g -Wall" )
+endif( )
 
 set_target_properties( ${SAMPLE_NAME} PROPERTIES
                         COMPILE_FLAGS ${COMPILER_FLAGS}
