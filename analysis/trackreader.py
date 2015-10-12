@@ -31,6 +31,9 @@ class Hit(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __hash__(self):
+        return self.hitID
+
 
 class Track(object):
     """Track instances hold all information needed to reconstruct a track, that
@@ -43,6 +46,16 @@ class Track(object):
         for line in lines:
             hit = Hit(line)
             self.hits.append(hit)
+
+    def get_coords(self):
+        xs = []
+        ys = []
+        zs = []
+        for hit in self.hits:
+            xs.append(hit.x)
+            ys.append(hit.y)
+            zs.append(hit.z)
+        return (xs, ys, zs)
 
     def __str__(self):
         s = 'Track (#%d) length: %d'%(self.tid,len(self.hits))
@@ -66,6 +79,12 @@ class Track(object):
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+    def __hash__(self):
+        hsh = 0
+        for i,h in enumerate(self.hits):
+            hsh += (i+1)*h.hitID
+        return hsh
 
 def read_trackfile(filename):
     """A simple cl_forward output file parser."""
