@@ -8,9 +8,6 @@ extern int*   h_sensor_Zs;
 extern int*   h_sensor_hitStarts;
 extern int*   h_sensor_hitNums;
 extern unsigned int* h_hit_IDs;
-extern float* h_hit_Xs;
-extern float* h_hit_Ys;
-extern float* h_hit_Zs; 
 
 
 int independent_execute(
@@ -94,6 +91,7 @@ int cpuPixelSearchByTripletSerialRun(
         std::vector<std::vector<uint8_t> > & output) {
     DEBUG << "executing cpuPixelSearchByTriplet with " << input.size() << " events" << std::endl;
 
+    Hits hits;
     // Define how many blocks / threads we need to deal with numberOfEvents
     // Each execution will return a different output
     output.resize(input.size());
@@ -104,7 +102,7 @@ int cpuPixelSearchByTripletSerialRun(
         Track *tracks = new Track[MAX_TRACKS];
 
         const std::vector<uint8_t>* event_input = input[i];
-        setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size());
+        setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), hits);
 
         numTracks = serialSearchByTriplets(tracks,(uint8_t*) &(*event_input)[0]);
         DEBUG << "Done." << std::endl;
@@ -115,7 +113,7 @@ int cpuPixelSearchByTripletSerialRun(
 
       // Calculate z to sensor map
       std::map<int, int> zhit_to_module;
-      setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size());
+      setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size(), hits);
       int number_of_sensors = *h_no_sensors;
         // map to convert from z of hit to module
       for(int j=0; j<number_of_sensors; ++j){
@@ -125,7 +123,7 @@ int cpuPixelSearchByTripletSerialRun(
       // Some hits z may not correspond to a sensor's,
       // but be close enough
       for(int j=0; j<*h_no_hits; ++j){
-          const int z = (int) h_hit_Zs[j];
+          const int z = (int) hits.Zs[j];
           if (zhit_to_module.find(z) == zhit_to_module.end()){
             const int sensor = findClosestModule(z, zhit_to_module);
             zhit_to_module[z] = sensor;
@@ -137,7 +135,7 @@ int cpuPixelSearchByTripletSerialRun(
         std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string("_serial.out"));
         DEBUG << "writing to: " << std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string("_serial.out") << std::endl;
         for(int j=0; j<numTracks; ++j){
-            printTrack(tracks, j, zhit_to_module, outfile);
+            printTrack(tracks, j, zhit_to_module, hits, outfile);
         }
         outfile.close();
 

@@ -48,7 +48,7 @@ std::string toString(T t){
 }
 
 int convertClToString(const char *filename, std::string& s);
-void setHPointersFromInput(uint8_t * input, size_t size);
+void setHPointersFromInput(uint8_t * input, size_t size, Hits& hits);
 void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input);
 
 // A non-efficient implementation that does what I need

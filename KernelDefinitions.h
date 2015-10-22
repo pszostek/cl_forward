@@ -56,6 +56,14 @@ struct Hit {
     float z;
 };
 
+struct Hits {
+    float* Xs;
+    float* Ys;
+    float* Zs;
+};
+
+using Hits = struct Hits;
+
 struct Track { // 4 + 24 * 4 = 100 B
     unsigned int hitsNum;
     unsigned int hits[MAX_TRACK_SIZE];
