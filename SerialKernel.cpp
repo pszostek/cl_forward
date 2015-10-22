@@ -60,8 +60,7 @@ float fitHitToTrack(const float tx, const float ty,
 void fillCandidates(int* const hit_candidates,
         int* const hit_h2_candidates, const int number_of_sensors,
         const int* const sensor_hitStarts, const int* const sensor_hitNums,
-        const float* const hit_Xs, const float* const hit_Ys,
-        const float* const hit_Zs, const int* sensor_Zs) {
+        const Hits& hits, const int* sensor_Zs) {
 
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
     int first_sensor = number_of_sensors - 1;
@@ -80,8 +79,8 @@ void fillCandidates(int* const hit_candidates,
             assert(h0_element < sensor_hitNums[first_sensor]);
             const int h0_index = sensor_hitStarts[first_sensor] + h0_element;
             struct Hit h0;
-            h0.x = hit_Xs[h0_index];
-            h0.z = hit_Zs[h0_index];
+            h0.x = hits.Xs[h0_index];
+            h0.z = hits.Zs[h0_index];
             const int hitstarts_s2 = sensor_hitStarts[second_sensor];
             const int hitnums_s2 = sensor_hitNums[second_sensor];
 
@@ -113,8 +112,8 @@ void fillCandidates(int* const hit_candidates,
                 for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
                     int h1_index = hitstarts_s2 + h1_element;
                     struct Hit h1;
-                    h1.x = hit_Xs[h1_index];
-                    h1.z = hit_Zs[h1_index];
+                    h1.x = hits.Xs[h1_index];
+                    h1.z = hits.Zs[h1_index];
 
                     if (process_h1_candidates && !last_h1_found) {
                         // Check if h0 and h1 are compatible
@@ -195,8 +194,7 @@ void fillCandidates(int* const hit_candidates,
 * @param tracks
 * @param number_of_hits
 */
-void trackForwarding(const float* const hit_Xs,
-        const float* const hit_Ys, const float* const hit_Zs,
+void trackForwarding(const Hits& hits,
         bool* const hit_used, int& tracks_insertPointer,
         int& ttf_insertPointer, int& weaktracks_insertPointer,
         int* const sensor_data, const unsigned int diff_ttf,
@@ -213,7 +211,7 @@ void trackForwarding(const float* const hit_Xs,
         struct Track t;
         struct Hit h0;
         // The logic is broken in two parts for shared memory loading
-
+        DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
         // TODO: PS: will ttf_condition ever be evaluated to false? Look at the for-loop cond.
         const bool ttf_condition = ttf_element < diff_ttf;
         if (ttf_condition) {
@@ -239,15 +237,14 @@ void trackForwarding(const float* const hit_Xs,
             const int h1_num = t.hits[t_hitsNum - 1];
 
             ASSERT(h0_num < number_of_hits)
-            ///DEBUG << "h0_num " << h0_num << " h1_num " << h1_num << std::endl;
-            h0.x = hit_Xs[h0_num];
-            h0.y = hit_Ys[h0_num];
-            h0.z = hit_Zs[h0_num];
+            h0.x = hits.Xs[h0_num];
+            h0.y = hits.Ys[h0_num];
+            h0.z = hits.Zs[h0_num];
 
             ASSERT(h1_num < number_of_hits)
-            const float h1_x = hit_Xs[h1_num];
-            const float h1_y = hit_Ys[h1_num];
-            h1_z = hit_Zs[h1_num];
+            const float h1_x = hits.Xs[h1_num];
+            const float h1_y = hits.Ys[h1_num];
+            h1_z = hits.Zs[h1_num];
 
             // Track forwarding over t, for all hits in the next module
             // Line calculations
@@ -273,9 +270,9 @@ void trackForwarding(const float* const hit_Xs,
             for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
                 const int h2_index = sensor_data[2] + k;
                 struct Hit h2;
-                h2.x = hit_Xs[h2_index];
-                h2.y = hit_Ys[h2_index];
-                h2.z = hit_Zs[h2_index];
+                h2.x = hits.Xs[h2_index];
+                h2.y = hits.Ys[h2_index];
+                h2.z = hits.Zs[h2_index];
 
                 const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
                 const bool fit_is_better = fit < best_fit;
@@ -371,8 +368,7 @@ void trackForwarding(const float* const hit_Xs,
 * @param tracks_to_follow
 */
 
-void trackCreation(const float* const hit_Xs,
-        const float* const hit_Ys, const float* const hit_Zs,
+void trackCreation(const Hits& hits,
         int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
         int& tracklets_insertPointer, int&  ttf_insertPointer,
@@ -392,12 +388,12 @@ void trackCreation(const float* const hit_Xs,
     float best_fit = MAX_FLOAT;
 
     // We will repeat this for performance reasons
-    h0.x = hit_Xs[h0_index];
-    h0.y = hit_Ys[h0_index];
-    h0.z = hit_Zs[h0_index];
+    h0.x = hits.Xs[h0_index];
+    h0.y = hits.Ys[h0_index];
+    h0.z = hits.Zs[h0_index];
 
     // Calculate new dymax
-    const float s1_z = hit_Zs[sensor_data[1]];
+    const float s1_z = hits.Zs[sensor_data[1]];
     const float h_dist = std::abs(s1_z - h0.z);
     dymax = PARAM_MAXYSLOPE * h_dist;
 
@@ -412,9 +408,9 @@ void trackCreation(const float* const hit_Xs,
         float dz_inverted;
 
         if (!is_h1_used) {
-            h1.x = hit_Xs[h1_index];
-            h1.y = hit_Ys[h1_index];
-            h1.z = hit_Zs[h1_index];
+            h1.x = hits.Xs[h1_index];
+            h1.y = hits.Ys[h1_index];
+            h1.z = hits.Zs[h1_index];
 
             dz_inverted = 1.f / (h1.z - h0.z);
 
@@ -432,9 +428,9 @@ void trackCreation(const float* const hit_Xs,
             for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
                 const int h2_index = sensor_data[2] + k;
                 struct Hit h2;
-                h2.x = hit_Xs[h2_index];
-                h2.y = hit_Ys[h2_index];
-                h2.z = hit_Zs[h2_index];
+                h2.x = hits.Xs[h2_index];
+                h2.y = hits.Ys[h2_index];
+                h2.z = hits.Zs[h2_index];
 
                 // Predictions of x and y for this hit
                 const float z2_tz = (h2.z - h0.z) * dz_inverted;
@@ -528,9 +524,10 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     // PS: Removed since never used
     // const unsigned int* const hit_IDs =  (uint32_t*) input;
     input += sizeof(uint32_t)*number_of_hits;
-    const float* const hit_Xs =  (float*) input; input += sizeof(float)*number_of_hits;
-    const float* const hit_Ys =  (float*) input; input += sizeof(float)*number_of_hits;
-    const float* const hit_Zs =  (float*) input;
+    Hits hits;
+    hits.Xs =  (float*) input; input += sizeof(float)*number_of_hits;
+    hits.Ys =  (float*) input; input += sizeof(float)*number_of_hits;
+    hits.Zs =  (float*) input;
 
     DEBUG << "number of sensors: " << number_of_sensors << std::endl;
     DEBUG << "number of hits: " << number_of_hits << std::endl;
@@ -592,7 +589,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
     fillCandidates(hit_candidates, hit_h2_candidates, number_of_sensors,
             sensor_hitStarts, sensor_hitNums,
-            hit_Xs, hit_Ys, hit_Zs, sensor_Zs);
+            hits, sensor_Zs);
     /*for (int i = 0; i < 2*number_of_hits; ++i)
         DEBUG << hit_h2_candidates[i] << ", ";
     DEBUG << std::endl;*/
@@ -642,7 +639,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         // 2a. Track forwarding
-        trackForwarding( hit_Xs, hit_Ys, hit_Zs, hit_used,
+        trackForwarding(hits, hit_used,
             tracks_insertPointer, ttf_insertPointer, weaktracks_insertPointer,
             sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks, number_of_hits);
@@ -659,7 +656,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
             h0_index < sensor_data[0] + sensor_data[SENSOR_DATA_HITNUMS];
             ++h0_index) {
             if (!hit_used[h0_index]) {
-                trackCreation(hit_Xs, hit_Ys, hit_Zs, sensor_data,
+                trackCreation(hits, sensor_data,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
                     tracklets_insertPointer, ttf_insertPointer, tracklets,
                     tracks_to_follow);

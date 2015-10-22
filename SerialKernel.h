@@ -9,13 +9,10 @@ float fitHitToTrack(const float tx, const float ty,
 void fillCandidates(int* const hit_candidates,
         int* const hit_h2_candidates, const int number_of_sensors,
         const int* const sensor_hitStarts, const int* const sensor_hitNums,
-        const float* const hit_Xs, const float* const hit_Ys,
-        const float* const hit_Zs, const int* sensor_Zs);
+        const Hits& hits, const int* sensor_Zs);
 
 
-
-void trackForwarding(const float* const hit_Xs,
-        const float* const hit_Ys, const float* const hit_Zs,
+void trackForwarding(const Hits& hits,
         bool* const hit_used, int& tracks_insertPointer,
         int& ttf_insertPointer, int& weaktracks_insertPointer,
         int* const sensor_data, const unsigned int diff_ttf,
@@ -25,8 +22,7 @@ void trackForwarding(const float* const hit_Xs,
 
 
 
-void trackCreation(const float* const hit_Xs,
-        const float* const hit_Ys, const float* const hit_Zs,
+void trackCreation(const Hits& hits,
         int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
         int& tracklets_insertPointer, int&  ttf_insertPointer,
