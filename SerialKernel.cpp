@@ -63,21 +63,21 @@ void fillCandidates(int* const hit_candidates,
         const Hits& hits, const int* sensor_Zs) {
 
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
-    int first_sensor = number_of_sensors - 1;
-    while (first_sensor >= 2) {
-        const int second_sensor = first_sensor - 2;
+    int cur_sensor = number_of_sensors - 1;
+    while (cur_sensor >= 2) {
+        const int second_sensor = cur_sensor - 2;
 
-        const bool process_h1_candidates = first_sensor >= 4;
-        const bool process_h2_candidates = first_sensor <= number_of_sensors - 3;
+        const bool process_h1_candidates = cur_sensor >= 4;
+        const bool process_h2_candidates = cur_sensor <= number_of_sensors - 3;
 
         // Sensor dependent calculations
-        const int z_s0 = process_h2_candidates ? sensor_Zs[first_sensor + 2] : 0;
+        const int z_s0 = process_h2_candidates ? sensor_Zs[cur_sensor + 2] : 0;
         const int z_s2 = process_h2_candidates ? sensor_Zs[second_sensor] : 0;
 
         // Iterate in all hits in z0
-        for (int h0_element=0; h0_element < sensor_hits.nums[first_sensor]; ++h0_element) {
-            assert(h0_element < sensor_hits.nums[first_sensor]);
-            const int h0_index = sensor_hits.starts[first_sensor] + h0_element;
+        for (int h0_element=0; h0_element < sensor_hits.nums[cur_sensor]; ++h0_element) {
+            assert(h0_element < sensor_hits.nums[cur_sensor]);
+            const int h0_index = sensor_hits.starts[cur_sensor] + h0_element;
             struct Hit h0;
             h0.x = hits.Xs[h0_index];
             h0.z = hits.Zs[h0_index];
@@ -104,7 +104,7 @@ void fillCandidates(int* const hit_candidates,
                 xmax_h2 = x + PARAM_TOLERANCE_CANDIDATES;
             }
 
-            if (first_sensor >= 4) {
+            if (cur_sensor >= 4) {
                 bool first_h1_found = false, last_h1_found = false;
                 bool first_h2_found = false, last_h2_found = false;
 
@@ -174,7 +174,7 @@ void fillCandidates(int* const hit_candidates,
             }
         }
 
-        --first_sensor;
+        --cur_sensor;
     }
 }
 
@@ -588,12 +588,12 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         DEBUG << hit_h2_candidates[i] << ", ";
     DEBUG << std::endl;*/
     // Deal with odd or even in the same thread
-    int first_sensor = number_of_sensors - 1;
+    int cur_sensor = number_of_sensors - 1;
 
     // Prepare s1 and s2 for the first iteration
     unsigned int prev_ttf, last_ttf = 0;
 
-    while (first_sensor >= 4) {
+    while (cur_sensor >= 4) {
 
         // OA: that's not needed anymore
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
@@ -604,7 +604,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         // why is it not in an ifdef
         /*
         if (get_local_id(0) < 6 && get_local_id(1) == 0) {
-            const int sensor_number = first_sensor - (get_local_id(0) % 3) * 2;
+            const int sensor_number = cur_sensor - (get_local_id(0) % 3) * 2;
             __global const int* const sensor_pointer = get_local_id(0) < 3 ? sensor_hitStarts : sensor_hitNums;
 
             sensor_data[get_local_id(0)] = sensor_pointer[sensor_number];
@@ -615,7 +615,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         */
         // OA: this should do the same thing for the serial code as the above if branch:
         for (int i = 0; i < 6; ++i) {
-            const int sensor_number = first_sensor - (i % 3) * 2;
+            const int sensor_number = cur_sensor - (i % 3) * 2;
             const int* const sensor_pointer = i < 3 ? sensor_hits.starts : sensor_hits.nums;
             sensor_data[i] = sensor_pointer[sensor_number];
         }
@@ -657,7 +657,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
             }
         }
 
-        first_sensor -= 1;
+        cur_sensor -= 1;
     }
 
     prev_ttf = last_ttf;
