@@ -6,8 +6,8 @@
 int*   h_no_sensors;
 int*   h_no_hits;
 int*   h_sensor_Zs;
-int*   h_sensor_hitStarts;
-int*   h_sensor_hitNums;
+/*int*   h_sensor_hitStarts;
+int*   h_sensor_hitNums;*/
 unsigned int* h_hit_IDs;
 /*float* h_hit_Xs;
 float* h_hit_Ys;
@@ -48,32 +48,33 @@ void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input) {
   // Order *all* the input vectors by h_hit_Xs natural order
   // per sensor
   Hits hits;
+  SensorHits sensor_hits;
   const int number_of_input_files = input.size();
   const std::vector<uint8_t>* startingEvent_input = input[0];
-  setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(), hits);
+  setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(), sensor_hits, hits);
 
   int number_of_sensors = *h_no_sensors;
   for (int i=0; i < number_of_input_files; ++i) {
     int acc_hitnums = 0;
     const std::vector<uint8_t>* event_input = input[i];
-    setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), hits);
+    setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), sensor_hits, hits);
 
     for (int j=0; j<number_of_sensors; j++) {
-      const int hitnums = h_sensor_hitNums[j];
+      const int hitnums = sensor_hits.nums[j];
       quicksort(hits.Xs, hits.Ys, hits.Zs, h_hit_IDs, acc_hitnums, acc_hitnums + hitnums - 1);
       acc_hitnums += hitnums;
     }
   }
 }
 
-void setHPointersFromInput(uint8_t * input, size_t size, Hits& hits){
+void setHPointersFromInput(uint8_t * input, size_t size, SensorHits& sensor_hits, Hits& hits){
   uint8_t * end = input + size;
 
   h_no_sensors       = (int32_t*)input; input += sizeof(int32_t);
   h_no_hits          = (int32_t*)input; input += sizeof(int32_t);
   h_sensor_Zs        = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
-  h_sensor_hitStarts = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
-  h_sensor_hitNums   = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
+  sensor_hits.starts = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
+  sensor_hits.nums   = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
   h_hit_IDs          = (uint32_t*)input; input += sizeof(uint32_t) * *h_no_hits;
   hits.Xs           = (float*)  input; input += sizeof(float)   * *h_no_hits;
   hits.Ys           = (float*)  input; input += sizeof(float)   * *h_no_hits;

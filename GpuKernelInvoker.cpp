@@ -4,9 +4,8 @@
 extern int*   h_no_sensors;
 extern int*   h_no_hits;
 extern int*   h_sensor_Zs;
-extern int*   h_sensor_hitStarts;
-extern int*   h_sensor_hitNums;
 extern unsigned int* h_hit_IDs;
+SensorHits sensor_hits;
 Hits hits;
 
 int invokeParallelSearch(
@@ -16,7 +15,7 @@ int invokeParallelSearch(
     std::vector<std::vector<uint8_t> > & output) {
   cl_int errcode_ret;
   const std::vector<uint8_t>* startingEvent_input = input[startingEvent];
-  setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(), hits);
+  setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(), sensor_hits, hits);
   int number_of_sensors = *h_no_sensors;
 
   // Startup settings
@@ -210,7 +209,7 @@ int invokeParallelSearch(
 
       // Calculate z to sensor map
       std::map<int, int> zhit_to_module;
-      setHPointersFromInput((uint8_t*) &(*(input[startingEvent + i]))[0], input[startingEvent + i]->size(), hits );
+      setHPointersFromInput((uint8_t*) &(*(input[startingEvent + i]))[0], input[startingEvent + i]->size(), sensor_hits, hits);
       int number_of_sensors = *h_no_sensors;
       if (logger::ll.verbosityLevel > 0){
         // map to convert from z of hit to module
@@ -337,8 +336,8 @@ int findClosestModule(const int z, const std::map<int, int>& zhit_to_module){
 void printOutAllSensorHits(int* prevs, int* nexts){
   DEBUG << "All valid sensor hits: " << std::endl;
   for(int i=0; i<h_no_sensors[0]; ++i){
-    for(int j=0; j<h_sensor_hitNums[i]; ++j){
-      int hit = h_sensor_hitStarts[i] + j;
+    for(int j=0; j < sensor_hits.nums[i]; ++j){
+      int hit = sensor_hits.starts[i] + j;
 
       if(nexts[hit] != -1){
         DEBUG << hit << ", " << nexts[hit] << std::endl;
@@ -348,8 +347,8 @@ void printOutAllSensorHits(int* prevs, int* nexts){
 }
 
 void printOutSensorHits(int sensorNumber, int* prevs, int* nexts){
-  for(int i=0; i<h_sensor_hitNums[sensorNumber]; ++i){
-    int hstart = h_sensor_hitStarts[sensorNumber];
+  for(int i=0; i < sensor_hits.nums[sensorNumber]; ++i){
+    int hstart = sensor_hits.starts[sensorNumber];
 
     DEBUG << hstart + i << ": " << prevs[hstart + i] << ", " << nexts[hstart + i] << std::endl;
   }
@@ -365,8 +364,8 @@ void printInfo(int numberOfSensors, int numberOfHits, const Hits& hits) {
 
   for (int i=0; i<numberOfSensors; ++i){
     DEBUG << " Zs: " << h_sensor_Zs[i] << std::endl
-      << " hitStarts: " << h_sensor_hitStarts[i] << std::endl
-      << " hitNums: " << h_sensor_hitNums[i] << std::endl << std::endl;
+      << " hitStarts: " << sensor_hits.starts[i] << std::endl
+      << " hitNums: " << sensor_hits.nums[i] << std::endl << std::endl;
   }
 
   DEBUG << numberOfHits << " hits: " << std::endl;

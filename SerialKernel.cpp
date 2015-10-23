@@ -59,7 +59,7 @@ float fitHitToTrack(const float tx, const float ty,
 
 void fillCandidates(int* const hit_candidates,
         int* const hit_h2_candidates, const int number_of_sensors,
-        const int* const sensor_hitStarts, const int* const sensor_hitNums,
+        const SensorHits& sensor_hits,
         const Hits& hits, const int* sensor_Zs) {
 
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
@@ -75,14 +75,14 @@ void fillCandidates(int* const hit_candidates,
         const int z_s2 = process_h2_candidates ? sensor_Zs[second_sensor] : 0;
 
         // Iterate in all hits in z0
-        for (int h0_element=0; h0_element<sensor_hitNums[first_sensor]; ++h0_element) {
-            assert(h0_element < sensor_hitNums[first_sensor]);
-            const int h0_index = sensor_hitStarts[first_sensor] + h0_element;
+        for (int h0_element=0; h0_element < sensor_hits.nums[first_sensor]; ++h0_element) {
+            assert(h0_element < sensor_hits.nums[first_sensor]);
+            const int h0_index = sensor_hits.starts[first_sensor] + h0_element;
             struct Hit h0;
             h0.x = hits.Xs[h0_index];
             h0.z = hits.Zs[h0_index];
-            const int hitstarts_s2 = sensor_hitStarts[second_sensor];
-            const int hitnums_s2 = sensor_hitNums[second_sensor];
+            const int hitstarts_s2 = sensor_hits.starts[second_sensor];
+            const int hitnums_s2 = sensor_hits.nums[second_sensor];
 
             float xmin_h2, xmax_h2;
             if (process_h2_candidates) {
@@ -123,14 +123,14 @@ void fillCandidates(int* const hit_candidates,
 
                         // Find the first one
                         if (!first_h1_found && tol_condition) {
-                            ASSERT(2 * h0_index < 2 * (sensor_hitStarts[number_of_sensors-1] + sensor_hitNums[number_of_sensors-1]))
+                            ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
                             hit_candidates[2 * h0_index] = h1_index;
                             first_h1_found = true;
                         }
                         // The last one, only if the first one has already been found
                         else if (first_h1_found && !tol_condition) {
-                            ASSERT(2 * h0_index + 1 < 2 * (sensor_hitStarts[number_of_sensors-1] + sensor_hitNums[number_of_sensors-1]))
+                            ASSERT(2 * h0_index + 1 < 2 * (sensor_hit.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
                             hit_candidates[2 * h0_index + 1] = h1_index;
                             last_h1_found = true;
@@ -139,13 +139,13 @@ void fillCandidates(int* const hit_candidates,
 
                     if (process_h2_candidates && !last_h2_found) {
                         if (!first_h2_found && h1.x > xmin_h2) {
-                            ASSERT(2 * h0_index < 2 * (sensor_hitStarts[number_of_sensors-1] + sensor_hitNums[number_of_sensors-1]))
+                            ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
                             hit_h2_candidates[2 * h0_index] = h1_index;
                             first_h2_found = true;
                         }
                         else if (first_h2_found && h1.x > xmax_h2) {
-                            ASSERT(2 * h0_index + 1 < 2 * (sensor_hitStarts[number_of_sensors-1] + sensor_hitNums[number_of_sensors-1]))
+                            ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
                             hit_h2_candidates[2 * h0_index + 1] = h1_index;
                             last_h2_found = true;
@@ -161,13 +161,13 @@ void fillCandidates(int* const hit_candidates,
                 // Note: If first is not found, then both should be -1
                 // and there wouldn't be any iteration
                 if (process_h1_candidates && first_h1_found && !last_h1_found) {
-                    ASSERT(2 * h0_index + 1 < 2 * (sensor_hitStarts[number_of_sensors-1] + sensor_hitNums[number_of_sensors-1]))
+                    ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
                     hit_candidates[2 * h0_index + 1] = hitstarts_s2 + hitnums_s2;
                 }
 
                 if (process_h2_candidates && first_h2_found && !last_h2_found) {
-                    ASSERT(2 * h0_index + 1 < 2 * (sensor_hitStarts[number_of_sensors-1] + sensor_hitNums[number_of_sensors-1]))
+                    ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
                     hit_h2_candidates[2 * h0_index + 1] = hitstarts_s2 + hitnums_s2;
                 }
@@ -518,9 +518,10 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
 
     const int number_of_sensors = *(uint32_t*)input; input += sizeof(uint32_t);
     const int number_of_hits = *(uint32_t*)input;    input += sizeof(uint32_t);
+    SensorHits sensor_hits;
     const int* const sensor_Zs = (int*) input;  input += sizeof(int)*number_of_sensors;
-    const int* const sensor_hitStarts =  (int*) input; input += sizeof(int)*number_of_sensors;
-    const int* const sensor_hitNums =  (int*) input; input += sizeof(int)*number_of_sensors;
+    sensor_hits.starts =  (int*) input; input += sizeof(int)*number_of_sensors;
+    sensor_hits.nums =  (int*) input; input += sizeof(int)*number_of_sensors;
     // PS: Removed since never used
     // const unsigned int* const hit_IDs =  (uint32_t*) input;
     input += sizeof(uint32_t)*number_of_hits;
@@ -588,7 +589,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
     //const int cond_sh_hit_mult = min((int) get_local_size(1), SH_HIT_MULT);
     //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
     fillCandidates(hit_candidates, hit_h2_candidates, number_of_sensors,
-            sensor_hitStarts, sensor_hitNums,
+            sensor_hits,
             hits, sensor_Zs);
     /*for (int i = 0; i < 2*number_of_hits; ++i)
         DEBUG << hit_h2_candidates[i] << ", ";
@@ -622,7 +623,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
         // OA: this should do the same thing for the serial code as the above if branch:
         for (int i = 0; i < 6; ++i) {
             const int sensor_number = first_sensor - (i % 3) * 2;
-            const int* const sensor_pointer = i < 3 ? sensor_hitStarts : sensor_hitNums;
+            const int* const sensor_pointer = i < 3 ? sensor_hits.starts : sensor_hits.nums;
             sensor_data[i] = sensor_pointer[sensor_number];
         }
 

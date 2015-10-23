@@ -8,7 +8,7 @@ float fitHitToTrack(const float tx, const float ty,
 
 void fillCandidates(int* const hit_candidates,
         int* const hit_h2_candidates, const int number_of_sensors,
-        const int* const sensor_hitStarts, const int* const sensor_hitNums,
+        const SensorHits& sensors,
         const Hits& hits, const int* sensor_Zs);
 
 
