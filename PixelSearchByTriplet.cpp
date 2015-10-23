@@ -109,28 +109,24 @@ int cpuPixelSearchByTripletSerialRun(
         DEBUG << "Done." << std::endl;
         DEBUG << "Found " << numTracks << " tracks." << std::endl;
 
-
-
-
       // Calculate z to sensor map
-      std::map<int, int> zhit_to_module;
-      setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size(), sensor_hits, hits);
-      int number_of_sensors = *h_no_sensors;
+        std::map<int, int> zhit_to_module;
+        setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size(), sensor_hits, hits);
+        int number_of_sensors = *h_no_sensors;
         // map to convert from z of hit to module
-      for(int j=0; j<number_of_sensors; ++j){
-          const int z = h_sensor_Zs[j];
-          zhit_to_module[z] = j;
-      }
+        for(int j=0; j<number_of_sensors; ++j){
+            const int z = h_sensor_Zs[j];
+            zhit_to_module[z] = j;
+        }
       // Some hits z may not correspond to a sensor's,
       // but be close enough
-      for(int j=0; j<*h_no_hits; ++j){
-          const int z = (int) hits.Zs[j];
-          if (zhit_to_module.find(z) == zhit_to_module.end()){
-            const int sensor = findClosestModule(z, zhit_to_module);
-            zhit_to_module[z] = sensor;
-          }
-      }
-
+        for(int j=0; j<*h_no_hits; ++j){
+            const int z = (int) hits.Zs[j];
+            if (zhit_to_module.find(z) == zhit_to_module.end()){
+                const int sensor = findClosestModule(z, zhit_to_module);
+                zhit_to_module[z] = sensor;
+            }
+        }
 
         // Print to output file with event no.
         std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string("_serial.out"));
