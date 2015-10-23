@@ -50,6 +50,13 @@ struct Sensor {
     unsigned int hitNums;
 };
 
+struct SensorHits {
+    int* starts;
+    int* nums;
+};
+
+using SensorHits = struct SensorHits;
+
 struct Hit {
     float x;
     float y;

@@ -92,6 +92,7 @@ int cpuPixelSearchByTripletSerialRun(
     DEBUG << "executing cpuPixelSearchByTriplet with " << input.size() << " events" << std::endl;
 
     Hits hits;
+    SensorHits sensor_hits;
     // Define how many blocks / threads we need to deal with numberOfEvents
     // Each execution will return a different output
     output.resize(input.size());
@@ -102,7 +103,7 @@ int cpuPixelSearchByTripletSerialRun(
         Track *tracks = new Track[MAX_TRACKS];
 
         const std::vector<uint8_t>* event_input = input[i];
-        setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), hits);
+        setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), sensor_hits, hits);
 
         numTracks = serialSearchByTriplets(tracks,(uint8_t*) &(*event_input)[0]);
         DEBUG << "Done." << std::endl;
@@ -113,7 +114,7 @@ int cpuPixelSearchByTripletSerialRun(
 
       // Calculate z to sensor map
       std::map<int, int> zhit_to_module;
-      setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size(), hits);
+      setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size(), sensor_hits, hits);
       int number_of_sensors = *h_no_sensors;
         // map to convert from z of hit to module
       for(int j=0; j<number_of_sensors; ++j){
