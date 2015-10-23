@@ -212,48 +212,45 @@ void trackForwarding(const Hits& hits,
         struct Hit h0;
         // The logic is broken in two parts for shared memory loading
         DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
-        // TODO: PS: will ttf_condition ever be evaluated to false? Look at the for-loop cond.
-        const bool ttf_condition = ttf_element < diff_ttf;
-        if (ttf_condition) {
-            // OA: tracks_to_follow is limited to TTF_MODULO elements.
-            fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
-            // OA: fulltrackno has not only the index into tracks_pointer encoded, but also:
-            // bit 31: track_flag is set in the trackCreation function
-            // bits 30-28: encodes skipped_modules
-            const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
-            skipped_modules = (fulltrackno & 0x70000000) >> 28;
-            trackno = fulltrackno & 0x0FFFFFFF;
 
-            const struct Track* const track_pointer = track_flag ? tracklets : tracks;
+        // OA: tracks_to_follow is limited to TTF_MODULO elements.
+        fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
+        // OA: fulltrackno has not only the index into tracks_pointer encoded, but also:
+        // bit 31: track_flag is set in the trackCreation function
+        // bits 30-28: encodes skipped_modules
+        const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
+        skipped_modules = (fulltrackno & 0x70000000) >> 28;
+        trackno = fulltrackno & 0x0FFFFFFF;
 
-            ASSERT(track_pointer==tracklets ? trackno < number_of_hits : true)
-            ASSERT(track_pointer==tracks ? trackno < MAX_TRACKS : true)
-            t = track_pointer[trackno];
+        const struct Track* const track_pointer = track_flag ? tracklets : tracks;
 
-            // Load last two hits in h0, h1
-            const int t_hitsNum = t.hitsNum;
-            ASSERT(t_hitsNum < MAX_TRACK_SIZE)
-            const int h0_num = t.hits[t_hitsNum - 2];
-            const int h1_num = t.hits[t_hitsNum - 1];
+        ASSERT(track_pointer==tracklets ? trackno < number_of_hits : true)
+        ASSERT(track_pointer==tracks ? trackno < MAX_TRACKS : true)
+        t = track_pointer[trackno];
 
-            ASSERT(h0_num < number_of_hits)
-            h0.x = hits.Xs[h0_num];
-            h0.y = hits.Ys[h0_num];
-            h0.z = hits.Zs[h0_num];
+        // Load last two hits in h0, h1
+        const int t_hitsNum = t.hitsNum;
+        ASSERT(t_hitsNum < MAX_TRACK_SIZE)
+        const int h0_num = t.hits[t_hitsNum - 2];
+        const int h1_num = t.hits[t_hitsNum - 1];
 
-            ASSERT(h1_num < number_of_hits)
-            const float h1_x = hits.Xs[h1_num];
-            const float h1_y = hits.Ys[h1_num];
-            h1_z = hits.Zs[h1_num];
+        ASSERT(h0_num < number_of_hits)
+        h0.x = hits.Xs[h0_num];
+        h0.y = hits.Ys[h0_num];
+        h0.z = hits.Zs[h0_num];
 
-            // Track forwarding over t, for all hits in the next module
-            // Line calculations
-            const float td = 1.0f / (h1_z - h0.z);
-            const float txn = (h1_x - h0.x);
-            const float tyn = (h1_y - h0.y);
-            tx = txn * td;
-            ty = tyn * td;
-        }
+        ASSERT(h1_num < number_of_hits)
+        const float h1_x = hits.Xs[h1_num];
+        const float h1_y = hits.Ys[h1_num];
+        h1_z = hits.Zs[h1_num];
+
+        // Track forwarding over t, for all hits in the next module
+        // Line calculations
+        const float td = 1.0f / (h1_z - h0.z);
+        const float txn = (h1_x - h0.x);
+        const float tyn = (h1_y - h0.y);
+        tx = txn * td;
+        ty = tyn * td;
 
         // Search for a best fit
         // Load shared elements
@@ -266,83 +263,79 @@ void trackForwarding(const Hits& hits,
         // Only load for get_local_id(1) == 0
         float best_fit = FLT_MAX;
 
-        if (ttf_condition) {
-            for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
-                const int h2_index = sensor_data[2] + k;
-                struct Hit h2;
-                h2.x = hits.Xs[h2_index];
-                h2.y = hits.Ys[h2_index];
-                h2.z = hits.Zs[h2_index];
+        for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
+            const int h2_index = sensor_data[2] + k;
+            struct Hit h2;
+            h2.x = hits.Xs[h2_index];
+            h2.y = hits.Ys[h2_index];
+            h2.z = hits.Zs[h2_index];
 
-                const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
-                const bool fit_is_better = fit < best_fit;
+            const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
+            const bool fit_is_better = fit < best_fit;
 
-                best_fit = fit_is_better * fit + !fit_is_better * best_fit;
-                best_hit_h2 = fit_is_better * h2_index + !fit_is_better * best_hit_h2;
-            }
+            best_fit = fit_is_better * fit + !fit_is_better * best_fit;
+            best_hit_h2 = fit_is_better * h2_index + !fit_is_better * best_hit_h2;
         }
 
 
         // We have a best fit!
         // Fill in t, ONLY in case the best fit is acceptable
-        if (ttf_condition) {
-            if (best_fit != FLT_MAX) {
-                // Mark h2 as used
-                ASSERT(best_hit_h2 < number_of_hits)
-                hit_used[best_hit_h2] = true;
+        if (best_fit != FLT_MAX) {
+            // Mark h2 as used
+            ASSERT(best_hit_h2 < number_of_hits)
+            hit_used[best_hit_h2] = true;
 
-                // Update the tracks to follow, we'll have to follow up
-                // this track on the next iteration :)
-                ASSERT(t.hitsNum < MAX_TRACK_SIZE)
-                t.hits[t.hitsNum++] = best_hit_h2;
+            // Update the tracks to follow, we'll have to follow up
+            // this track on the next iteration :)
+            ASSERT(t.hitsNum < MAX_TRACK_SIZE)
+            t.hits[t.hitsNum++] = best_hit_h2;
 
-                // Update the track in the bag
-                if (t.hitsNum <= 4) {
-                    ASSERT(t.hits[0] < number_of_hits)
-                    ASSERT(t.hits[1] < number_of_hits)
-                    ASSERT(t.hits[2] < number_of_hits)
+            // Update the track in the bag
+            if (t.hitsNum <= 4) {
+                ASSERT(t.hits[0] < number_of_hits)
+                ASSERT(t.hits[1] < number_of_hits)
+                ASSERT(t.hits[2] < number_of_hits)
 
-                    // Also mark the first three as used
-                    hit_used[t.hits[0]] = true;
-                    hit_used[t.hits[1]] = true;
-                    hit_used[t.hits[2]] = true;
+                // Also mark the first three as used
+                hit_used[t.hits[0]] = true;
+                hit_used[t.hits[1]] = true;
+                hit_used[t.hits[2]] = true;
 
-                    // If it is a track made out of less than or equal than 4 hits,
-                    // we have to allocate it in the tracks pointer
-                    // XXX OA: no more atomic_add needed
-                    //trackno = atomic_add(tracks_insertPointer, 1);
-                    trackno = tracks_insertPointer++;
-                }
-
-                // Copy the track into tracks
-                ASSERT(trackno < number_of_hits)
-                tracks[trackno] = t;
-
-                // Add the tracks to the bag of tracks to_follow
+                // If it is a track made out of less than or equal than 4 hits,
+                // we have to allocate it in the tracks pointer
                 // XXX OA: no more atomic_add needed
-                //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-                tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
+                //trackno = atomic_add(tracks_insertPointer, 1);
+                trackno = tracks_insertPointer++;
             }
-            // A track just skipped a module
-            // We keep it for another round
-            else if (skipped_modules <= MAX_SKIPPED_MODULES) {
-                // Form the new mask
-                trackno = ((skipped_modules + 1) << 28) | (fulltrackno & 0x8FFFFFFF);
 
-                // Add the tracks to the bag of tracks to_follow
-                //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-                tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
-            }
-            // If there are only three hits in this track,
-            // mark it as "doubtful"
-            else if (t.hitsNum == 3) {
-                //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
-                weak_tracks[weaktracks_insertPointer++] = trackno;
-                ASSERT(weaktracks_insertPointer < number_of_hits)
-            }
-            // In the "else" case, we couldn't follow up the track,
-            // so we won't be track following it anymore.
+            // Copy the track into tracks
+            ASSERT(trackno < number_of_hits)
+            tracks[trackno] = t;
+
+            // Add the tracks to the bag of tracks to_follow
+            // XXX OA: no more atomic_add needed
+            //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
+            tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
         }
+        // A track just skipped a module
+        // We keep it for another round
+        else if (skipped_modules <= MAX_SKIPPED_MODULES) {
+            // Form the new mask
+            trackno = ((skipped_modules + 1) << 28) | (fulltrackno & 0x8FFFFFFF);
+
+            // Add the tracks to the bag of tracks to_follow
+            //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
+            tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
+        }
+        // If there are only three hits in this track,
+        // mark it as "doubtful"
+        else if (t.hitsNum == 3) {
+            //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
+            weak_tracks[weaktracks_insertPointer++] = trackno;
+            ASSERT(weaktracks_insertPointer < number_of_hits)
+        }
+        // In the "else" case, we couldn't follow up the track,
+        // so we won't be track following it anymore.
     }
 }
 /**
