@@ -494,7 +494,7 @@ void trackCreation(const Hits& hits,
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input) {
+int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, size_t size) {
 
 
     // Data initialization
