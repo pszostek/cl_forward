@@ -30,7 +30,7 @@ void trackCreation(const Hits& hits,
 
 
 
-int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input); 
+int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, size_t size); 
 
 
 

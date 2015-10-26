@@ -107,7 +107,7 @@ int cpuPixelSearchByTripletSerialRun(
             number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
             hit_IDs, hits);
 
-        numTracks = serialSearchByTriplets(tracks,(uint8_t*) &(*event_input)[0]);
+        numTracks = serialSearchByTriplets(tracks,(uint8_t*) &(*event_input)[0], event_input->size());
         DEBUG << "Done." << std::endl;
         DEBUG << "Found " << numTracks << " tracks." << std::endl;
 
