@@ -1,15 +1,13 @@
 
 #include "Tools.h"
 
-// TODO: Remove globals in the short future
-
-int*   h_no_sensors;
+/*int*   h_no_sensors;
 int*   h_no_hits;
 int*   h_sensor_Zs;
-/*int*   h_sensor_hitStarts;
-int*   h_sensor_hitNums;*/
+int*   h_sensor_hitStarts;
+int*   h_sensor_hitNums;
 unsigned int* h_hit_IDs;
-/*float* h_hit_Xs;
+float* h_hit_Xs;
 float* h_hit_Ys;
 float* h_hit_Zs;*/
 
@@ -47,41 +45,47 @@ int convertClToString(const char *filename, std::string& s)
 void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input) {
   // Order *all* the input vectors by h_hit_Xs natural order
   // per sensor
-  Hits hits;
+  int number_of_sensors, number_of_hits;
+  int *sensor_Zs;
+  unsigned int *hit_IDs;
   SensorHits sensor_hits;
+  Hits hits;
   const int number_of_input_files = input.size();
-  const std::vector<uint8_t>* startingEvent_input = input[0];
-  setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(), sensor_hits, hits);
+  //const std::vector<uint8_t>* startingEvent_input = input[0];
+  //this call is just to set h_no_sensors and number_of_sensors 
+  //setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(),
+  //  number_of_sensors, number_of_hits, h_sensors_Zs, sensor_hits, hits);
 
-  int number_of_sensors = *h_no_sensors;
   for (int i=0; i < number_of_input_files; ++i) {
     int acc_hitnums = 0;
     const std::vector<uint8_t>* event_input = input[i];
-    setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), sensor_hits, hits);
+    setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), 
+      number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
+      hit_IDs, hits);
 
     for (int j=0; j<number_of_sensors; j++) {
       const int hitnums = sensor_hits.nums[j];
-      quicksort(hits.Xs, hits.Ys, hits.Zs, h_hit_IDs, acc_hitnums, acc_hitnums + hitnums - 1);
+      quicksort(hits.Xs, hits.Ys, hits.Zs, hit_IDs, acc_hitnums, acc_hitnums + hitnums - 1);
       acc_hitnums += hitnums;
     }
   }
 }
 
-void setHPointersFromInput(uint8_t * input, size_t size, SensorHits& sensor_hits, Hits& hits){
+void setHPointersFromInput(uint8_t * input, size_t size,
+  int& number_of_sensors, int& number_of_hits, int*& sensor_Zs, SensorHits& sensor_hits,
+  unsigned int*& hit_IDs, Hits& hits) {
   uint8_t * end = input + size;
 
-  h_no_sensors       = (int32_t*)input; input += sizeof(int32_t);
-  h_no_hits          = (int32_t*)input; input += sizeof(int32_t);
-  h_sensor_Zs        = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
-  sensor_hits.starts = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
-  sensor_hits.nums   = (int32_t*)input; input += sizeof(int32_t) * *h_no_sensors;
-  h_hit_IDs          = (uint32_t*)input; input += sizeof(uint32_t) * *h_no_hits;
-  hits.Xs           = (float*)  input; input += sizeof(float)   * *h_no_hits;
-  hits.Ys           = (float*)  input; input += sizeof(float)   * *h_no_hits;
-  hits.Zs           = (float*)  input; input += sizeof(float)   * *h_no_hits;
-
-  if (input != end)
-    throw std::runtime_error("failed to deserialize event");
+  number_of_sensors   = *((int32_t*)input); input += sizeof(int32_t);
+  number_of_hits      = *((int32_t*)input); input += sizeof(int32_t);
+  sensor_Zs           = (int32_t*)input; input += sizeof(int32_t) * number_of_sensors;
+  sensor_hits.starts = (int32_t*)input; input += sizeof(int32_t) * number_of_sensors;
+  sensor_hits.nums   = (int32_t*)input; input += sizeof(int32_t) * number_of_sensors;
+  hit_IDs             = (uint32_t*)input; input += sizeof(uint32_t) * number_of_hits;
+  hits.Xs             = (float*)  input; input += sizeof(float)   * number_of_hits;
+  hits.Ys             = (float*)  input; input += sizeof(float)   * number_of_hits;
+  hits.Zs             = (float*)  input; input += sizeof(float)   * number_of_hits;
+  ASSERT (input == end);
 }
 
 std::map<std::string, float> calcResults(std::vector<float>& times){

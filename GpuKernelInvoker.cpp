@@ -1,10 +1,10 @@
 #include "GpuKernelInvoker.h"
 #define CL_USE_DEPRECATED_OPENCL_2_0_APIS
 
-extern int*   h_no_sensors;
-extern int*   h_no_hits;
-extern int*   h_sensor_Zs;
-extern unsigned int* h_hit_IDs;
+int    h_no_sensors;
+int    h_no_hits;
+int*   h_sensor_Zs;
+unsigned int* h_hit_IDs;
 SensorHits sensor_hits;
 Hits hits;
 
@@ -15,8 +15,8 @@ int invokeParallelSearch(
     std::vector<std::vector<uint8_t> > & output) {
   cl_int errcode_ret;
   const std::vector<uint8_t>* startingEvent_input = input[startingEvent];
-  setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(), sensor_hits, hits);
-  int number_of_sensors = *h_no_sensors;
+  setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(),
+    h_no_sensors, h_no_hits, h_sensor_Zs, sensor_hits, h_hit_IDs, hits);
 
   // Startup settings
   size_t global_work_size[2] = { (size_t) NUMTHREADS_X * eventsToProcess, 2 };
@@ -209,17 +209,17 @@ int invokeParallelSearch(
 
       // Calculate z to sensor map
       std::map<int, int> zhit_to_module;
-      setHPointersFromInput((uint8_t*) &(*(input[startingEvent + i]))[0], input[startingEvent + i]->size(), sensor_hits, hits);
-      int number_of_sensors = *h_no_sensors;
+      setHPointersFromInput((uint8_t*) &(*(input[startingEvent + i]))[0], input[startingEvent + i]->size(),
+        h_no_sensors, h_no_hits, h_sensor_Zs, sensor_hits, h_hit_IDs, hits);
       if (logger::ll.verbosityLevel > 0){
         // map to convert from z of hit to module
-        for(int j=0; j<number_of_sensors; ++j){
+        for(int j=0; j<h_no_sensors; ++j){
           const int z = h_sensor_Zs[j];
           zhit_to_module[z] = j;
         }
         // Some hits z may not correspond to a sensor's,
         // but be close enough
-        for(int j=0; j<*h_no_hits; ++j){
+        for(int j=0; j<h_no_hits; ++j){
           const int z = (int) hits.Zs[j];
           if (zhit_to_module.find(z) == zhit_to_module.end()){
             const int sensor = findClosestModule(z, zhit_to_module);
@@ -234,7 +234,7 @@ int invokeParallelSearch(
       std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string(".out"));
       DEBUG << "writing to: " << std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string(".out") << std::endl;
       for(int j=0; j<numberOfTracks; ++j){
-        printTrack(tracks_in_solution, j, zhit_to_module, hits, outfile);
+        printTrack(tracks_in_solution, j, zhit_to_module, hits, h_hit_IDs, outfile);
       }
       outfile.close();
     }
@@ -282,7 +282,7 @@ int invokeParallelSearch(
  * @param trackNumber
  */
 void printTrack(Track* tracks, const int trackNumber,
-  const std::map<int, int>& zhit_to_module, const Hits& hits, std::ofstream& outstream){
+  const std::map<int, int>& zhit_to_module, const Hits& hits, const unsigned int* h_hit_IDs, std::ofstream& outstream){
   const Track t = tracks[trackNumber];
   outstream << "Track #" << trackNumber << ", length " << (int) t.hitsNum << std::endl;
 
@@ -335,7 +335,7 @@ int findClosestModule(const int z, const std::map<int, int>& zhit_to_module){
 
 void printOutAllSensorHits(int* prevs, int* nexts){
   DEBUG << "All valid sensor hits: " << std::endl;
-  for(int i=0; i<h_no_sensors[0]; ++i){
+  for(int i=0; i<h_no_sensors; ++i){
     for(int j=0; j < sensor_hits.nums[i]; ++j){
       int hit = sensor_hits.starts[i] + j;
 
@@ -358,8 +358,8 @@ void printInfo(int numberOfSensors, int numberOfHits, const Hits& hits) {
   numberOfSensors = numberOfSensors>52 ? 52 : numberOfSensors;
 
   DEBUG << "Read info:" << std::endl
-    << " no sensors: " << h_no_sensors[0] << std::endl
-    << " no hits: " << h_no_hits[0] << std::endl
+    << " no sensors: " << h_no_sensors << std::endl
+    << " no hits: " << h_no_hits << std::endl
     << numberOfSensors << " sensors: " << std::endl;
 
   for (int i=0; i<numberOfSensors; ++i){
