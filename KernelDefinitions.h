@@ -1,4 +1,5 @@
-
+#ifndef _KERNEL_DEFINITIONS_H_
+#define _KERNEL_DEFINITIONS_H_
 // Used to prefer a device type over another one
 #define DEVICE_CPU 0
 #define DEVICE_GPU 1
@@ -75,3 +76,5 @@ struct Track { // 4 + 24 * 4 = 100 B
     unsigned int hitsNum;
     unsigned int hits[MAX_TRACK_SIZE];
 };
+
+#endif
