@@ -494,7 +494,7 @@ void trackCreation(const Hits& hits,
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, size_t size) {
+std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
 
 
     // Data initialization
@@ -509,22 +509,9 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
     // Pointers to data within the event
 
 
-    const int number_of_sensors = *(uint32_t*)input; input += sizeof(uint32_t);
-    const int number_of_hits = *(uint32_t*)input;    input += sizeof(uint32_t);
-    SensorHits sensor_hits;
-    const int* const sensor_Zs = (int*) input;  input += sizeof(int)*number_of_sensors;
-    sensor_hits.starts =  (int*) input; input += sizeof(int)*number_of_sensors;
-    sensor_hits.nums =  (int*) input; input += sizeof(int)*number_of_sensors;
-    // PS: Removed since never used
-    // const unsigned int* const hit_IDs =  (uint32_t*) input;
-    input += sizeof(uint32_t)*number_of_hits;
-    Hits hits;
-    hits.Xs =  (float*) input; input += sizeof(float)*number_of_hits;
-    hits.Ys =  (float*) input; input += sizeof(float)*number_of_hits;
-    hits.Zs =  (float*) input;
-
-    DEBUG << "number of sensors: " << number_of_sensors << std::endl;
-    DEBUG << "number of hits: " << number_of_hits << std::endl;
+    struct Track* const tracks = new Track[MAX_TRACKS];
+    DEBUG << "number of sensors: " << data_frame.number_of_sensors << std::endl;
+    DEBUG << "number of hits: " << data_frame.number_of_hits << std::endl;
     // Per event datatypes
     // OA: we pass a tracks pointer to be used in here.
     //__global struct Track* tracks = dev_tracks + tracks_offset;
@@ -535,10 +522,10 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
 
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
-    bool* hit_used = new bool[number_of_hits];
-    int* hit_candidates = new int[2 * number_of_hits];
-    int* hit_h2_candidates = new int[2 * number_of_hits];
-    for (int i = 0; i < 2*number_of_hits; ++i)
+    bool* hit_used = new bool[data_frame.number_of_hits];
+    int* hit_candidates = new int[2 * data_frame.number_of_hits];
+    int* hit_h2_candidates = new int[2 * data_frame.number_of_hits];
+    for (int i = 0; i < 2*data_frame.number_of_hits; ++i)
     {
         hit_used[i/2] = false;
         hit_candidates[i] = -1;
@@ -546,8 +533,8 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
     }
 
     int* tracks_to_follow = new int[TTF_MODULO];
-    int* weak_tracks = new int[number_of_hits];
-    struct Track* const tracklets = new Track[number_of_hits];
+    int* weak_tracks = new int[data_frame.number_of_hits];
+    struct Track* const tracklets = new Track[data_frame.number_of_hits];
     // TODO: replace by memset
     for (int i = 0; i < TTF_MODULO; ++i)
     {
@@ -581,14 +568,14 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
     // Not needed anymore
     //const int cond_sh_hit_mult = min((int) get_local_size(1), SH_HIT_MULT);
     //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
-    fillCandidates(hit_candidates, hit_h2_candidates, number_of_sensors,
-            sensor_hits,
-            hits, sensor_Zs);
+    fillCandidates(hit_candidates, hit_h2_candidates, data_frame.number_of_sensors,
+            data_frame.sensor_hits,
+            data_frame.hits, data_frame.sensor_Zs);
     /*for (int i = 0; i < 2*number_of_hits; ++i)
         DEBUG << hit_h2_candidates[i] << ", ";
     DEBUG << std::endl;*/
     // Deal with odd or even in the same thread
-    int cur_sensor = number_of_sensors - 1;
+    int cur_sensor = data_frame.number_of_sensors - 1;
 
     // Prepare s1 and s2 for the first iteration
     unsigned int prev_ttf, last_ttf = 0;
@@ -616,7 +603,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
         // OA: this should do the same thing for the serial code as the above if branch:
         for (int i = 0; i < 6; ++i) {
             const int sensor_number = cur_sensor - (i % 3) * 2;
-            const int* const sensor_pointer = i < 3 ? sensor_hits.starts : sensor_hits.nums;
+            const int* const sensor_pointer = i < 3 ? data_frame.sensor_hits.starts : data_frame.sensor_hits.nums;
             sensor_data[i] = sensor_pointer[sensor_number];
         }
 
@@ -633,10 +620,10 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         // 2a. Track forwarding
-        trackForwarding(hits, hit_used,
+        trackForwarding(data_frame.hits, hit_used,
             tracks_insertPointer, ttf_insertPointer, weaktracks_insertPointer,
             sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
-            tracklets, tracks, number_of_hits);
+            tracklets, tracks, data_frame.number_of_hits);
 
         // Iterate in all hits for current sensor
         // 2a. Seeding - Track creation
@@ -650,7 +637,7 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
             h0_index < sensor_data[0] + sensor_data[SENSOR_DATA_HITNUMS];
             ++h0_index) {
             if (!hit_used[h0_index]) {
-                trackCreation(hits, sensor_data,
+                trackCreation(data_frame.hits, sensor_data,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
                     tracklets_insertPointer, ttf_insertPointer, tracklets,
                     tracks_to_follow);
@@ -697,11 +684,18 @@ int serialSearchByTriplets(struct Track* const tracks, const uint8_t* input, siz
             tracks[trackno] = t;
         }
     }
+
+    std::vector<Track> return_vector;
+    return_vector.reserve(tracks_insertPointer);
+    for (unsigned int track_idx = 0; track_idx < tracks_insertPointer; ++track_idx)
+        return_vector.push_back(std::move(tracks[track_idx]));
+
     delete[] hit_used;
     delete[] hit_candidates;
     delete[] hit_h2_candidates;
     delete[] tracks_to_follow;
     delete[] weak_tracks;
     delete[] tracklets;
-    return tracks_insertPointer;
+    delete[] tracks;
+    return return_vector;
 }

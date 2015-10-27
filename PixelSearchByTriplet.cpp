@@ -1,4 +1,5 @@
 
+#include "DataFrame.h"
 #include "PixelSearchByTriplet.h"
 #include "SerialKernel.h"
 
@@ -88,43 +89,33 @@ int cpuPixelSearchByTripletSerialRun(
         const std::vector<const std::vector<uint8_t>* > & input,
         std::vector<std::vector<uint8_t> > & output) {
     DEBUG << "executing cpuPixelSearchByTriplet with " << input.size() << " events" << std::endl;
-    Hits hits;
-    int number_of_sensors, number_of_hits;
-    int *sensor_Zs;
-    unsigned int *hit_IDs;
-    SensorHits sensor_hits;
-    // Define how many blocks / threads we need to deal with numberOfEvents
-    // Each execution will return a different output
     output.resize(input.size());
 
-    for (unsigned int i = 0; i < input.size(); ++i) {
+    for (unsigned int input_index = 0; input_index < input.size(); ++input_index) {
         int numTracks = 0;
-        DEBUG << "Processing event " << i << std::endl;
-        Track *tracks = new Track[MAX_TRACKS];
+        DEBUG << "Processing event " << input_index << std::endl;
 
-        const std::vector<uint8_t>* event_input = input[i];
-        setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(),
-            number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
-            hit_IDs, hits);
-
-        numTracks = serialSearchByTriplets(tracks,(uint8_t*) &(*event_input)[0], event_input->size());
-        DEBUG << "Done." << std::endl;
-        DEBUG << "Found " << numTracks << " tracks." << std::endl;
+        const std::vector<uint8_t>* event_input = input[input_index];
+        DataFrame data_frame((uint8_t*) &(*event_input)[0], event_input->size());
+        auto tracks = serialSearchByTriplets(data_frame);
+        DEBUG << "Done. Found " << tracks.size() <<" tracks." << std::endl;
 
       // Calculate z to sensor map
         std::map<int, int> zhit_to_module;
-        setHPointersFromInput((uint8_t*) &(*(input[i]))[0], input[i]->size(),
-            number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
-            hit_IDs, hits);
+        // TODO: Why this guy was called another time here?
+        // setHPointersFromInput((uint8_t*) &(*(input[input_index]))[0], input[input_index]->size(),
+        //     number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
+        //     hit_IDs, hits);
+
         // map to convert from z of hit to module
-        for(int j=0; j<number_of_sensors; ++j){
-            const int z = sensor_Zs[j];
+        for(int j=0; j<data_frame.number_of_sensors; ++j){
+            const int z = data_frame.sensor_Zs[j];
             zhit_to_module[z] = j;
         }
       // Some hits z may not correspond to a sensor's,
       // but be close enough
-        for(int j=0; j<number_of_hits; ++j){
-            const int z = (int) hits.Zs[j];
+        for(int j=0; j<data_frame.number_of_hits; ++j){
+            const int z = (int) data_frame.hits.Zs[j];
             if (zhit_to_module.find(z) == zhit_to_module.end()){
                 const int sensor = findClosestModule(z, zhit_to_module);
                 zhit_to_module[z] = sensor;
@@ -132,14 +123,15 @@ int cpuPixelSearchByTripletSerialRun(
         }
 
         // Print to output file with event no.
-        std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string("_serial.out"));
-        DEBUG << "writing to: " << std::string(RESULTS_FOLDER) + std::string("/") + toString(i) + std::string("_serial.out") << std::endl;
-        for(int j=0; j<numTracks; ++j){
-            printTrack(tracks, j, zhit_to_module, hits, hit_IDs,  outfile);
+        std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial.out"));
+        DEBUG << "writing to: " << std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial.out") << std::endl;
+        unsigned int track_idx = 0;
+        for(auto track: tracks) {
+            outfile << "Track #" << track_idx << ", length " << (int) track.hitsNum << std::endl;
+            printTrack(track, zhit_to_module, data_frame, outfile);
+            ++track_idx;
         }
         outfile.close();
-
-        delete[] tracks;
     }
 
     return 0;

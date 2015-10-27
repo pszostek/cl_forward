@@ -4,6 +4,7 @@
 #include <iostream>
 #include "Definitions.h"
 #include "Tools.h"
+#include "DataFrame.h"
 #include "Logger.h"
 
 #include <fstream>
@@ -25,8 +26,10 @@ void getMaxNumberOfHits(char*& input, int& maxHits);
 void printOutSensorHits(int sensorNumber, int* prevs, int* nexts);
 void printOutAllSensorHits(int* prevs, int* nexts);
 void printInfo(int numberOfSensors, int numberOfHits);
-void printTrack(Track* tracks, const int trackNumber, const std::map<int, int>& zhit_to_module,  const Hits& hit, const unsigned int* h_hit_IDs, std::ofstream& outstream);
-int findClosestModule(const int z, const std::map<int, int>& zhit_to_module);
+void clChoosePlatform(cl_device_id*& devices, cl_platform_id& platform);
+const char *getErrorString (cl_int error);
+template <class T>
+void clInitializeValue(cl_command_queue& commandQueue, cl_mem& param, size_t size, T value);
 
 int invokeParallelSearch(
     const int startingEvent,
