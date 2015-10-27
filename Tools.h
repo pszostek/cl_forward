@@ -27,6 +27,7 @@
 #include <string>
 #include <fstream>
 #include "Logger.h"
+#include "DataFrame.h"
 #include "Definitions.h"
 
 #define clCheck(stmt) { \
@@ -57,24 +58,12 @@ void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input);
 void quicksort (float* a, float* b, float* c, unsigned int* d, int start, int end);
 int divide (float* a, float* b, float* c, unsigned int* d, int first, int last);
 template<typename T> void swap (T& a, T& b);
-
+void printTrack(const Track& track, const std::map<int, int>& zhit_to_module, const DataFrame& data_frame, std::ofstream& outstream);
+int findClosestModule(const int z, const std::map<int, int>& zhit_to_module);
 std::map<std::string, float> calcResults(std::vector<float>& times);
 void checkClError (const cl_int errcode_ret);
-const char *getErrorString (cl_int error);
 
-template <class T>
-void clInitializeValue(cl_command_queue& commandQueue, cl_mem& param, size_t size, T value) {
-    T* temp;
-    if (value == 0) temp = (T*) calloc(size, sizeof(T));
-    else {
-        temp = (T*) malloc(size * sizeof(T));
-        for (int i=0; i<size; ++i) temp[i] = value;
-    }
 
-    clCheck(clEnqueueWriteBuffer(commandQueue, param, CL_TRUE, 0, size * sizeof(T), temp, 0, NULL, NULL));
-    free(temp);
-}
 
-void clChoosePlatform(cl_device_id*& devices, cl_platform_id& platform);
 
 #endif
