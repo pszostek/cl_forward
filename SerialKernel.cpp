@@ -57,6 +57,7 @@ float DataFrame::fitHitToTrack(const float tx, const float ty,
 * @param sensor_Zs
 */
 
+// this guy should return <hit_candidates, hit_h2_candidates>
 void DataFrame::fillCandidates(int* const hit_candidates,
         int* const hit_h2_candidates) {
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
@@ -192,9 +193,9 @@ void DataFrame::fillCandidates(int* const hit_candidates,
 * @param number_of_hits
 */
 void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
-        int& ttf_insertPointer, int& weaktracks_insertPointer,
+        int& ttf_insertPointer, 
         int* const sensor_data, const unsigned int diff_ttf,
-        int* const tracks_to_follow, int* const weak_tracks,
+        int* const tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, struct Track* const tracklets,
         struct Track* const tracks) {
 
@@ -327,8 +328,8 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         // mark it as "doubtful"
         else if (t.hitsNum == 3) {
             //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
-            weak_tracks[weaktracks_insertPointer++] = trackno;
-            ASSERT(weaktracks_insertPointer < number_of_hits)
+            weak_tracks.push_back(trackno);
+            ASSERT(weak_tracks.size() < number_of_hits)
         }
         // In the "else" case, we couldn't follow up the track,
         // so we won't be track following it anymore.
@@ -528,7 +529,10 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
     }
 
     int* tracks_to_follow = new int[TTF_MODULO];
-    int* weak_tracks = new int[number_of_hits];
+
+    std::vector<int> weak_tracks;
+    weak_tracks.reserve(number_of_hits);
+
     struct Track* const tracklets = new Track[number_of_hits];
     // TODO: replace by memset
     for (int i = 0; i < TTF_MODULO; ++i)
@@ -543,7 +547,6 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
     //__global int* const weaktracks_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 1;
     //__global int* const tracklets_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 2;
     // OA: instead we declare local vars and pass references.
-    int weaktracks_insertPointer = 0;
     int tracklets_insertPointer = 0;
 
     // OA: This was an atomic counter to be able to append to the global array tracks_to_follow while
@@ -614,7 +617,7 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
 
         // 2a. Track forwarding
         trackForwarding(hit_used,
-            tracks_insertPointer, ttf_insertPointer, weaktracks_insertPointer,
+            tracks_insertPointer, ttf_insertPointer,
             sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks);
 
@@ -654,18 +657,16 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
         // Here we are only interested in three-hit tracks,
         // to mark them as "doubtful"
         if (track_flag) {
-            const unsigned int weakP = weaktracks_insertPointer++;
-            ASSERT(weakP < number_of_hits)
-            weak_tracks[weakP] = trackno;
+            weak_tracks.push_back(trackno);
+            ASSERT(weak_tracks.size() < number_of_hits);
         }
     }
 
     // Compute the three-hit tracks left
-    const unsigned int weaktracks_total = weaktracks_insertPointer;
-    for (unsigned int weaktrack_no = 0; weaktrack_no < weaktracks_total; ++weaktrack_no) {
+    for (const auto& weak_track: weak_tracks) {
 
         // Load the tracks from the tracklets
-        const struct Track t = tracklets[weak_tracks[weaktrack_no]];
+        const struct Track t = tracklets[weak_track];
 
         // Store them in the tracks bag iff they
         // are made out of three unused hits
@@ -687,7 +688,6 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
     delete[] hit_candidates;
     delete[] hit_h2_candidates;
     delete[] tracks_to_follow;
-    delete[] weak_tracks;
     delete[] tracklets;
     delete[] tracks;
     return return_vector;
