@@ -196,7 +196,7 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         int& ttf_insertPointer, 
         int* const sensor_data, const unsigned int diff_ttf,
         int* const tracks_to_follow, std::vector<int>& weak_tracks,
-        const unsigned int prev_ttf, struct Track* const tracklets,
+        const unsigned int prev_ttf, std::vector<Track>& tracklets,
         struct Track* const tracks) {
 
     for (unsigned int ttf_element=0; ttf_element<diff_ttf; ++ttf_element) {
@@ -219,11 +219,13 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         skipped_modules = (fulltrackno & 0x70000000) >> 28;
         trackno = fulltrackno & 0x0FFFFFFF;
 
-        const struct Track* const track_pointer = track_flag ? tracklets : tracks;
-
-        ASSERT(track_pointer==tracklets ? trackno < number_of_hits : true)
-        ASSERT(track_pointer==tracks ? trackno < MAX_TRACKS : true)
-        t = track_pointer[trackno];
+        if (track_flag) {
+            t = tracklets[trackno];
+            ASSERT(trackno < number_of_hits);
+        } else {
+            t = tracks[trackno];
+            ASSERT(trackno < MAX_TRACKS);
+        }
 
         // Load last two hits in h0, h1
         const int t_hitsNum = t.hitsNum;
@@ -360,8 +362,8 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
 
 void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
-        int& tracklets_insertPointer, int&  ttf_insertPointer,
-        struct Track* const tracklets, int* const tracks_to_follow) {
+        int&  ttf_insertPointer,
+        std::vector<Track>& tracklets, int* const tracks_to_follow) {
 
     DEBUG << "trackCreation: " << h0_index << std::endl;
     // Track creation starts
@@ -451,18 +453,16 @@ void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates,
         // Fill in track information
 
         // Add the track to the bag of tracks
-        const unsigned int trackP = tracklets_insertPointer++;
-        tracklets[trackP].hitsNum = 3;
-        tracklets[trackP].hits[0] = h0_index;
-        tracklets[trackP].hits[1] = best_hit_h1;
-        tracklets[trackP].hits[2] = best_hit_h2;
+        Track new_tracklet = {3, {h0_index, best_hit_h1, best_hit_h2}};
+        tracklets.push_back(new_tracklet);
+        unsigned int new_tracklet_idx = tracklets.size()-1;
 
         // Add the tracks to the bag of tracks to_follow
         // Note: The first bit flag marks this is a tracklet (hitsNum == 3),
         // and hence it is stored in tracklets
         const unsigned int ttfP = ttf_insertPointer++ % TTF_MODULO;
-        tracks_to_follow[ttfP] = 0x80000000 | trackP;
-        DEBUG << "updated tracks_to_follow " << trackP << std::endl;
+        tracks_to_follow[ttfP] = 0x80000000 | new_tracklet_idx;
+        DEBUG << "updated tracks_to_follow " << new_tracklet_idx << std::endl;
     }
 }
 
@@ -533,7 +533,8 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
     std::vector<int> weak_tracks;
     weak_tracks.reserve(number_of_hits);
 
-    struct Track* const tracklets = new Track[number_of_hits];
+    std::vector<Track> tracklets;
+    tracklets.reserve(number_of_hits);
     // TODO: replace by memset
     for (int i = 0; i < TTF_MODULO; ++i)
     {
@@ -546,8 +547,6 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
     //const int ip_shift = events_under_process + event_number * NUM_ATOMICS;
     //__global int* const weaktracks_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 1;
     //__global int* const tracklets_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 2;
-    // OA: instead we declare local vars and pass references.
-    int tracklets_insertPointer = 0;
 
     // OA: This was an atomic counter to be able to append to the global array tracks_to_follow while
     // processing several envents simultaneously - this will be needed later again probably
@@ -635,7 +634,7 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
             if (!hit_used[h0_index]) {
                 trackCreation(sensor_data,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
-                    tracklets_insertPointer, ttf_insertPointer, tracklets,
+                    ttf_insertPointer, tracklets,
                     tracks_to_follow);
             }
         }
@@ -688,7 +687,6 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
     delete[] hit_candidates;
     delete[] hit_h2_candidates;
     delete[] tracks_to_follow;
-    delete[] tracklets;
     delete[] tracks;
     return return_vector;
 }
