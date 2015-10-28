@@ -18,12 +18,35 @@ public:
     Hits hits;
 
     void set_h_pointers_from_input(uint8_t * input, size_t size);
+
     static void quicksort (float* a, float* b, float* c, unsigned int* d, int start, int end);
+
     template<typename T> static void swap (T& a, T& b);
     static int divide (float* a, float* b, float* c, unsigned int* d, int start, int end);
+
+    void fillCandidates(int* const hit_candidates,
+        int* const hit_h2_candidates);
+
+    void trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
+        bool* const hit_used, int* const hit_h2_candidates,
+        int& tracklets_insertPointer, int&  ttf_insertPointer,
+        struct Track* const tracklets, int* const tracks_to_follow);
+
+    void trackForwarding(bool* const hit_used, int& tracks_insertPointer,
+        int& ttf_insertPointer, int& weaktracks_insertPointer,
+        int* const sensor_data, const unsigned int diff_ttf,
+        int* const tracks_to_follow, int* const weak_tracks,
+        const unsigned int prev_ttf, struct Track* const tracklets,
+        struct Track* const tracks);
+
+    static float fitHitToTrack(const float tx, const float ty,
+        const struct Hit* h0, const float h1_z, const struct Hit* h2);
 //public:
     DataFrame(uint8_t* input, size_t size);
     virtual ~DataFrame();
+
+
+    std::vector<Track> serialSearchByTriplets();
 
 };
 

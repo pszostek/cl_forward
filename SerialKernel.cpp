@@ -20,7 +20,7 @@
 * @return
 */
 
-float fitHitToTrack(const float tx, const float ty,
+float DataFrame::fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2) {
     // tolerances
     const float dz = h2->z - h0->z;
@@ -57,11 +57,8 @@ float fitHitToTrack(const float tx, const float ty,
 * @param sensor_Zs
 */
 
-void fillCandidates(int* const hit_candidates,
-        int* const hit_h2_candidates, const int number_of_sensors,
-        const SensorHits& sensor_hits,
-        const Hits& hits, const int* sensor_Zs) {
-
+void DataFrame::fillCandidates(int* const hit_candidates,
+        int* const hit_h2_candidates) {
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
     int cur_sensor = number_of_sensors - 1;
     while (cur_sensor >= 2) {
@@ -194,13 +191,12 @@ void fillCandidates(int* const hit_candidates,
 * @param tracks
 * @param number_of_hits
 */
-void trackForwarding(const Hits& hits,
-        bool* const hit_used, int& tracks_insertPointer,
+void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         int& ttf_insertPointer, int& weaktracks_insertPointer,
         int* const sensor_data, const unsigned int diff_ttf,
         int* const tracks_to_follow, int* const weak_tracks,
         const unsigned int prev_ttf, struct Track* const tracklets,
-        struct Track* const tracks, const int number_of_hits) {
+        struct Track* const tracks) {
 
     for (unsigned int ttf_element=0; ttf_element<diff_ttf; ++ttf_element) {
 
@@ -361,8 +357,7 @@ void trackForwarding(const Hits& hits,
 * @param tracks_to_follow
 */
 
-void trackCreation(const Hits& hits,
-        int* const sensor_data, int* const hit_candidates, int h0_index,
+void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
         int& tracklets_insertPointer, int&  ttf_insertPointer,
         struct Track* const tracklets, int* const tracks_to_follow) {
@@ -494,7 +489,7 @@ void trackCreation(const Hits& hits,
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
+std::vector<Track> DataFrame::serialSearchByTriplets() {
 
 
     // Data initialization
@@ -510,8 +505,8 @@ std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
 
 
     struct Track* const tracks = new Track[MAX_TRACKS];
-    DEBUG << "number of sensors: " << data_frame.number_of_sensors << std::endl;
-    DEBUG << "number of hits: " << data_frame.number_of_hits << std::endl;
+    DEBUG << "number of sensors: " << number_of_sensors << std::endl;
+    DEBUG << "number of hits: " << number_of_hits << std::endl;
     // Per event datatypes
     // OA: we pass a tracks pointer to be used in here.
     //__global struct Track* tracks = dev_tracks + tracks_offset;
@@ -522,10 +517,10 @@ std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
 
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
-    bool* hit_used = new bool[data_frame.number_of_hits];
-    int* hit_candidates = new int[2 * data_frame.number_of_hits];
-    int* hit_h2_candidates = new int[2 * data_frame.number_of_hits];
-    for (int i = 0; i < 2*data_frame.number_of_hits; ++i)
+    bool* hit_used = new bool[number_of_hits];
+    int* hit_candidates = new int[2 * number_of_hits];
+    int* hit_h2_candidates = new int[2 * number_of_hits];
+    for (int i = 0; i < 2*number_of_hits; ++i)
     {
         hit_used[i/2] = false;
         hit_candidates[i] = -1;
@@ -533,8 +528,8 @@ std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
     }
 
     int* tracks_to_follow = new int[TTF_MODULO];
-    int* weak_tracks = new int[data_frame.number_of_hits];
-    struct Track* const tracklets = new Track[data_frame.number_of_hits];
+    int* weak_tracks = new int[number_of_hits];
+    struct Track* const tracklets = new Track[number_of_hits];
     // TODO: replace by memset
     for (int i = 0; i < TTF_MODULO; ++i)
     {
@@ -568,14 +563,12 @@ std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
     // Not needed anymore
     //const int cond_sh_hit_mult = min((int) get_local_size(1), SH_HIT_MULT);
     //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
-    fillCandidates(hit_candidates, hit_h2_candidates, data_frame.number_of_sensors,
-            data_frame.sensor_hits,
-            data_frame.hits, data_frame.sensor_Zs);
+    fillCandidates(hit_candidates, hit_h2_candidates);
     /*for (int i = 0; i < 2*number_of_hits; ++i)
         DEBUG << hit_h2_candidates[i] << ", ";
     DEBUG << std::endl;*/
     // Deal with odd or even in the same thread
-    int cur_sensor = data_frame.number_of_sensors - 1;
+    int cur_sensor = number_of_sensors - 1;
 
     // Prepare s1 and s2 for the first iteration
     unsigned int prev_ttf, last_ttf = 0;
@@ -603,7 +596,7 @@ std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
         // OA: this should do the same thing for the serial code as the above if branch:
         for (int i = 0; i < 6; ++i) {
             const int sensor_number = cur_sensor - (i % 3) * 2;
-            const int* const sensor_pointer = i < 3 ? data_frame.sensor_hits.starts : data_frame.sensor_hits.nums;
+            const int* const sensor_pointer = i < 3 ? sensor_hits.starts : sensor_hits.nums;
             sensor_data[i] = sensor_pointer[sensor_number];
         }
 
@@ -620,10 +613,10 @@ std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         // 2a. Track forwarding
-        trackForwarding(data_frame.hits, hit_used,
+        trackForwarding(hit_used,
             tracks_insertPointer, ttf_insertPointer, weaktracks_insertPointer,
             sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
-            tracklets, tracks, data_frame.number_of_hits);
+            tracklets, tracks);
 
         // Iterate in all hits for current sensor
         // 2a. Seeding - Track creation
@@ -637,7 +630,7 @@ std::vector<Track> serialSearchByTriplets(DataFrame& data_frame) {
             h0_index < sensor_data[0] + sensor_data[SENSOR_DATA_HITNUMS];
             ++h0_index) {
             if (!hit_used[h0_index]) {
-                trackCreation(data_frame.hits, sensor_data,
+                trackCreation(sensor_data,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
                     tracklets_insertPointer, ttf_insertPointer, tracklets,
                     tracks_to_follow);

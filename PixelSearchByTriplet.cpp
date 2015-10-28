@@ -92,12 +92,11 @@ int cpuPixelSearchByTripletSerialRun(
     output.resize(input.size());
 
     for (unsigned int input_index = 0; input_index < input.size(); ++input_index) {
-        int numTracks = 0;
-        DEBUG << "Processing event " << input_index << std::endl;
+        DEBUG << "Processing data frame " << input_index << std::endl;
 
         const std::vector<uint8_t>* event_input = input[input_index];
         DataFrame data_frame((uint8_t*) &(*event_input)[0], event_input->size());
-        auto tracks = serialSearchByTriplets(data_frame);
+        auto tracks = data_frame.serialSearchByTriplets();
         DEBUG << "Done. Found " << tracks.size() <<" tracks." << std::endl;
 
       // Calculate z to sensor map
