@@ -48,6 +48,8 @@ class Track(object):
             self.hits.append(hit)
 
     def get_coords(self):
+        """Return three lists for x, y and z coordinates of hits.
+        This is especially useful for using with matplotlib 3D plotting."""
         xs = []
         ys = []
         zs = []
