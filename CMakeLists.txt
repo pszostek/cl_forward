@@ -15,7 +15,7 @@
 #################################################################################
 
 set( SAMPLE_NAME clpixel )
-set( SOURCE_FILES Tools.cpp Logger.cpp GpuKernelInvoker.cpp
+set( SOURCE_FILES DataFrame.cpp Tools.cpp Logger.cpp GpuKernelInvoker.cpp
   PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp)
 set( EXTRA_FILES Kernel.cl KernelDefinitions.h )
 
