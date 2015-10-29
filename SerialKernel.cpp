@@ -597,12 +597,6 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
         sensor_data[4] = sensor_hits.nums[cur_sensor-2];  // never used in the code
         sensor_data[5] = sensor_hits.nums[cur_sensor-4];
 
-        for (int i = 0; i < 6; ++i) {
-            const int sensor_number = cur_sensor - (i % 3) * 2;
-            const int* const sensor_pointer = i < 3 ? sensor_hits.starts : sensor_hits.nums;
-            sensor_data[i] = sensor_pointer[sensor_number];
-        }
-
         // We need this barrier if we are not using shared memory for the hits.
         // Removing shmem for hits removes the barriers in trackForwarding.
         // Otherwise the three statements from before could be executed before / after updating
