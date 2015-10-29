@@ -19,11 +19,13 @@ $(EXECUTABLE): $(OBJECTS)
 .cpp.o:
 	    $(CC) $(CFLAGS) $< -o $@
 
-.PHONY: clean check
+.PHONY: clean check test
 
 check:
 	cppcheck . $(SOURCES) --force --enable=all
-		
+
+test:
+	tools/test.sh
 
 clean:
 		rm -rf $(OBJECTS) $(EXECUTABLE)
