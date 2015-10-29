@@ -570,12 +570,10 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
         DEBUG << hit_h2_candidates[i] << ", ";
     DEBUG << std::endl;*/
     // Deal with odd or even in the same thread
-    int cur_sensor = number_of_sensors - 1;
-
     // Prepare s1 and s2 for the first iteration
     unsigned int prev_ttf, last_ttf = 0;
 
-    while (cur_sensor >= 4) {
+    for (unsigned int cur_sensor = number_of_sensors-1; cur_sensor >= 4; --cur_sensor) {
 
         // OA: that's not needed anymore
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
@@ -638,8 +636,6 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
                     tracks_to_follow);
             }
         }
-
-        cur_sensor -= 1;
     }
 
     prev_ttf = last_ttf;
