@@ -195,7 +195,7 @@ void DataFrame::fillCandidates(int* const hit_candidates,
 void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         int& ttf_insertPointer, 
         int* const sensor_data, const unsigned int diff_ttf,
-        int* const tracks_to_follow, std::vector<int>& weak_tracks,
+        std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
         struct Track* const tracks) {
 
@@ -363,7 +363,7 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
 void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
         int&  ttf_insertPointer,
-        std::vector<Track>& tracklets, int* const tracks_to_follow) {
+        std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
     DEBUG << "trackCreation: " << h0_index << std::endl;
     // Track creation starts
@@ -528,18 +528,14 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
         hit_h2_candidates[i] = -1;
     }
 
-    int* tracks_to_follow = new int[TTF_MODULO];
+    std::vector<int> tracks_to_follow(TTF_MODULO, 0);
+    //int* tracks_to_follow = new int[TTF_MODULO];
 
     std::vector<int> weak_tracks;
     weak_tracks.reserve(number_of_hits);
 
     std::vector<Track> tracklets;
     tracklets.reserve(number_of_hits);
-    // TODO: replace by memset
-    for (int i = 0; i < TTF_MODULO; ++i)
-    {
-        tracks_to_follow[i] = 0;
-    }
 
     // Initialize variables according to event number and sensor side
     // Insert pointers (atomics)
@@ -689,7 +685,6 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
     delete[] hit_used;
     delete[] hit_candidates;
     delete[] hit_h2_candidates;
-    delete[] tracks_to_follow;
     delete[] tracks;
     return return_vector;
 }
