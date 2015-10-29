@@ -593,7 +593,14 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
             max_numhits_to_process[0] = 0;
         }
         */
-        // OA: this should do the same thing for the serial code as the above if branch:
+
+        sensor_data[0] = sensor_hits.starts[cur_sensor];  // never used in the code
+        sensor_data[1] = sensor_hits.starts[cur_sensor-2];
+        sensor_data[2] = sensor_hits.starts[cur_sensor-4];
+        sensor_data[3] = sensor_hits.nums[cur_sensor];  // never used in the code 
+        sensor_data[4] = sensor_hits.nums[cur_sensor-2];  // never used in the code
+        sensor_data[5] = sensor_hits.nums[cur_sensor-4];
+
         for (int i = 0; i < 6; ++i) {
             const int sensor_number = cur_sensor - (i % 3) * 2;
             const int* const sensor_pointer = i < 3 ? sensor_hits.starts : sensor_hits.nums;
