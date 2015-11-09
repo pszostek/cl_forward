@@ -13,12 +13,13 @@ class Hit(object):
         fields = hitline.strip().split()
         self.hitID = int(fields[0])
         self.hitNum = int(fields[1][1:-1])
+        self.module = int(fields[3][:-1])
         self.x = float(fields[5][:-1])
         self.y = float(fields[7][:-1])
         self.z = float(fields[9])
 
     def __str__(self):
-        return "%d (%d): x = %g, y = %g, z = %g"%(self.hitID, self.hitNum, self.x, self.y, self.z)
+        return "%d (%d) M#(%d): x = %g, y = %g, z = %g"%(self.hitID, self.hitNum, self.module, self.x, self.y, self.z)
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.__dict__)
