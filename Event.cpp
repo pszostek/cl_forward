@@ -1,8 +1,8 @@
 #include <cstdint>
 #include <cstddef>
-#include "DataFrame.h"
+#include "Event.h"
 
-DataFrame::DataFrame(uint8_t * input, size_t size) {
+Event::Event(uint8_t * input, size_t size) {
     uint8_t * end = input + size;
     number_of_sensors   = *((int32_t*)input); input += sizeof(int32_t);
     number_of_hits      = *((int32_t*)input); input += sizeof(int32_t);
@@ -16,9 +16,9 @@ DataFrame::DataFrame(uint8_t * input, size_t size) {
 
 }
 
-DataFrame::~DataFrame() {};
+Event::~Event() {};
 
-void DataFrame::quicksort (float* a, float* b, float* c, unsigned int* d, int start, int end) {
+void Event::quicksort (float* a, float* b, float* c, unsigned int* d, int start, int end) {
     if (start < end) {
         const int pivot = divide(a, b, c, d, start, end);
         quicksort(a, b, c, d, start, pivot - 1);
@@ -26,7 +26,7 @@ void DataFrame::quicksort (float* a, float* b, float* c, unsigned int* d, int st
     }
 }
 
-int DataFrame::divide (float* a, float* b, float* c, unsigned int* d, int start, int end) {
+int Event::divide (float* a, float* b, float* c, unsigned int* d, int start, int end) {
     int left;
     int right;
     float pivot;
@@ -61,7 +61,7 @@ int DataFrame::divide (float* a, float* b, float* c, unsigned int* d, int start,
 }
 
 template<typename T>
-void DataFrame::swap (T& a, T& b) {
+void Event::swap (T& a, T& b) {
     T temp = a;
     a = b;
     b = temp;

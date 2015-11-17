@@ -2,7 +2,7 @@
 #define SERIAL_KERNEL 1
 
 #include <vector>
-#include "DataFrame.h"
+#include "Event.h"
 
 float fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2);
@@ -33,7 +33,7 @@ void trackCreation(const Hits& hits,
 
 
 
-std::vector<Track> serialSearchByTriplets(DataFrame& data_frame); 
+std::vector<Track> serialSearchByTriplets(Event& event);
 
 
 

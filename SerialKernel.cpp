@@ -20,7 +20,7 @@
 * @return
 */
 
-float DataFrame::fitHitToTrack(const float tx, const float ty,
+float Event::fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2) {
     // tolerances
     const float dz = h2->z - h0->z;
@@ -58,7 +58,7 @@ float DataFrame::fitHitToTrack(const float tx, const float ty,
 */
 
 // this guy should return <hit_candidates, hit_h2_candidates>
-void DataFrame::fillCandidates(int* const hit_candidates,
+void Event::fillCandidates(int* const hit_candidates,
         int* const hit_h2_candidates) {
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
     int cur_sensor = number_of_sensors - 1;
@@ -192,7 +192,7 @@ void DataFrame::fillCandidates(int* const hit_candidates,
 * @param tracks
 * @param number_of_hits
 */
-void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
+void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         int& ttf_insertPointer,
         int* const sensor_data, const unsigned int diff_ttf,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
@@ -360,7 +360,7 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
 * @param tracks_to_follow
 */
 
-void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
+void Event::trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
         int&  ttf_insertPointer,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
@@ -497,7 +497,7 @@ void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates,
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-std::vector<Track> DataFrame::serialSearchByTriplets() {
+std::vector<Track> Event::serialSearchByTriplets() {
 
 
     // Data initialization
