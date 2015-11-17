@@ -7,7 +7,7 @@
 #include "KernelDefinitions.h"
 
 
-class DataFrame {
+class Event {
 //private:
 public:
     int number_of_sensors;
@@ -42,8 +42,8 @@ public:
     static float fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2);
 //public:
-    DataFrame(uint8_t* input, size_t size);
-    virtual ~DataFrame();
+    Event(uint8_t* input, size_t size);
+    virtual ~Event();
 
 
     std::vector<Track> serialSearchByTriplets();

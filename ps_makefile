@@ -1,7 +1,7 @@
 CFLAGS=-c -g -Wall -std=c++11 -Wc++11-compat
 LDFLAGS=-L/usr/lib/x86_64-linux-gnu -lOpenCL -g
 SOURCES=PixelSearchByTriplet.cpp \
-		DataFrame.cpp \
+		Event.cpp \
 		GpuKernelInvoker.cpp \
 		Tools.cpp \
 		IndependentEntrypoint.cpp \

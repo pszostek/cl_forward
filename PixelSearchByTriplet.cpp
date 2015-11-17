@@ -1,5 +1,5 @@
 
-#include "DataFrame.h"
+#include "Event.h"
 #include "PixelSearchByTriplet.h"
 #include "SerialKernel.h"
 
@@ -95,8 +95,8 @@ int cpuPixelSearchByTripletSerialRun(
         DEBUG << "Processing data frame " << input_index << std::endl;
 
         const std::vector<uint8_t>* event_input = input[input_index];
-        DataFrame data_frame((uint8_t*) &(*event_input)[0], event_input->size());
-        auto tracks = data_frame.serialSearchByTriplets();
+        Event event((uint8_t*) &(*event_input)[0], event_input->size());
+        auto tracks = event.serialSearchByTriplets();
         DEBUG << "Done. Found " << tracks.size() <<" tracks." << std::endl;
 
       // Calculate z to sensor map
@@ -107,14 +107,14 @@ int cpuPixelSearchByTripletSerialRun(
         //     hit_IDs, hits);
 
         // map to convert from z of hit to module
-        for(int j=0; j<data_frame.number_of_sensors; ++j){
-            const int z = data_frame.sensor_Zs[j];
+        for(int j=0; j<event.number_of_sensors; ++j){
+            const int z = event.sensor_Zs[j];
             zhit_to_module[z] = j;
         }
       // Some hits z may not correspond to a sensor's,
       // but be close enough
-        for(int j=0; j<data_frame.number_of_hits; ++j){
-            const int z = (int) data_frame.hits.Zs[j];
+        for(int j=0; j<event.number_of_hits; ++j){
+            const int z = (int) event.hits.Zs[j];
             if (zhit_to_module.find(z) == zhit_to_module.end()){
                 const int sensor = findClosestModule(z, zhit_to_module);
                 zhit_to_module[z] = sensor;
@@ -127,7 +127,7 @@ int cpuPixelSearchByTripletSerialRun(
         unsigned int track_idx = 0;
         for(auto track: tracks) {
             outfile << "Track #" << track_idx << ", length " << (int) track.hitsNum << std::endl;
-            printTrack(track, zhit_to_module, data_frame, outfile);
+            printTrack(track, zhit_to_module, event, outfile);
             ++track_idx;
         }
         outfile.close();

@@ -52,14 +52,14 @@ void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input) {
   Hits hits;
   const int number_of_input_files = input.size();
   //const std::vector<uint8_t>* startingEvent_input = input[0];
-  //this call is just to set h_no_sensors and number_of_sensors 
+  //this call is just to set h_no_sensors and number_of_sensors
   //setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(),
   //  number_of_sensors, number_of_hits, h_sensors_Zs, sensor_hits, hits);
 
   for (int i=0; i < number_of_input_files; ++i) {
     int acc_hitnums = 0;
     const std::vector<uint8_t>* event_input = input[i];
-    setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(), 
+    setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(),
       number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
       hit_IDs, hits);
 
@@ -133,14 +133,14 @@ void checkClError(const cl_int errcode_ret) {
  * @param trackNumber
  */
  void printTrack(const Track& track,
-  const std::map<int, int>& zhit_to_module, const DataFrame& data_frame, std::ofstream& outstream){
+  const std::map<int, int>& zhit_to_module, const Event& event, std::ofstream& outstream){
 
   for(unsigned int hit_idx = 0; hit_idx < track.hitsNum; ++hit_idx){
     const int hitNumber = track.hits[hit_idx];
-    const unsigned int id = data_frame.hit_IDs[hitNumber];
-    const float x = data_frame.hits.Xs[hitNumber];
-    const float y = data_frame.hits.Ys[hitNumber];
-    const float z = data_frame.hits.Zs[hitNumber];
+    const unsigned int id = event.hit_IDs[hitNumber];
+    const float x = event.hits.Xs[hitNumber];
+    const float y = event.hits.Ys[hitNumber];
+    const float z = event.hits.Zs[hitNumber];
     const int module = zhit_to_module.at((int) z);
 
     outstream << " " << std::setw(8) << id << " (" << hitNumber << ")"
@@ -229,5 +229,3 @@ void swap (T& a, T& b) {
     a = b;
     b = temp;
 }
-
-
