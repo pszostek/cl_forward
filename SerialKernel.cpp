@@ -193,7 +193,7 @@ void DataFrame::fillCandidates(int* const hit_candidates,
 * @param number_of_hits
 */
 void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
-        int& ttf_insertPointer, 
+        int& ttf_insertPointer,
         int* const sensor_data, const unsigned int diff_ttf,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
@@ -208,7 +208,7 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         struct Track t;
         struct Hit h0;
         // The logic is broken in two parts for shared memory loading
-        DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
+        //DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
 
         // OA: tracks_to_follow is limited to TTF_MODULO elements.
         fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
@@ -260,7 +260,7 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         // Iterate in the third list of hits
         // Tiled memory access on h2
         // Only load for get_local_id(1) == 0
-        float best_fit = FLT_MAX;
+        float best_fit = MAX_FLOAT;
 
         for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
             const int h2_index = sensor_data[2] + k;
@@ -279,7 +279,7 @@ void DataFrame::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
 
         // We have a best fit!
         // Fill in t, ONLY in case the best fit is acceptable
-        if (best_fit != FLT_MAX) {
+        if (best_fit != MAX_FLOAT) {
             // Mark h2 as used
             ASSERT(best_hit_h2 < number_of_hits)
             hit_used[best_hit_h2] = true;
@@ -365,7 +365,7 @@ void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates,
         int&  ttf_insertPointer,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
-    DEBUG << "trackCreation: " << h0_index << std::endl;
+    //DEBUG << "trackCreation: " << h0_index << std::endl;
     // Track creation starts
     unsigned int best_hit_h1 = 0;
     unsigned int best_hit_h2 = 0;
@@ -382,6 +382,8 @@ void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates,
     h0.x = hits.Xs[h0_index];
     h0.y = hits.Ys[h0_index];
     h0.z = hits.Zs[h0_index];
+    //if (h0_index == 249)
+    //    DEBUG << "h0_index 249\n";
 
     // Calculate new dymax
     const float s1_z = hits.Zs[sensor_data[1]];
@@ -396,6 +398,8 @@ void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates,
     for (unsigned int h1_element=0; h1_element < num_h1_to_process; ++h1_element) {
         int h1_index = first_h1 + h1_element;
         bool is_h1_used = hit_used[h1_index];
+        //if (h0_index == 249)
+        //    DEBUG << "h0_249 " << h1_index << " " << is_h1_used << std::endl;
         float dz_inverted;
 
         if (!is_h1_used) {
@@ -453,7 +457,10 @@ void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates,
         // Fill in track information
 
         // Add the track to the bag of tracks
-        Track new_tracklet = {3, {h0_index, best_hit_h1, best_hit_h2}};
+        // TODO: fix this in a clean way
+        Track new_tracklet = {3, {static_cast<unsigned int>(h0_index), best_hit_h1, best_hit_h2}};
+        if (h0_index == 249)
+            DEBUG << h0_index << " " << best_hit_h1 << " " << best_hit_h2 << std::endl;
         tracklets.push_back(new_tracklet);
         unsigned int new_tracklet_idx = tracklets.size()-1;
 
@@ -462,7 +469,7 @@ void DataFrame::trackCreation(int* const sensor_data, int* const hit_candidates,
         // and hence it is stored in tracklets
         const unsigned int ttfP = ttf_insertPointer++ % TTF_MODULO;
         tracks_to_follow[ttfP] = 0x80000000 | new_tracklet_idx;
-        DEBUG << "updated tracks_to_follow " << new_tracklet_idx << std::endl;
+        //DEBUG << "updated tracks_to_follow " << new_tracklet_idx << std::endl;
     }
 }
 
@@ -593,7 +600,7 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
         sensor_data[0] = sensor_hits.starts[cur_sensor];  // never used in the code
         sensor_data[1] = sensor_hits.starts[cur_sensor-2];
         sensor_data[2] = sensor_hits.starts[cur_sensor-4];
-        sensor_data[3] = sensor_hits.nums[cur_sensor];  // never used in the code 
+        sensor_data[3] = sensor_hits.nums[cur_sensor];  // never used in the code
         sensor_data[4] = sensor_hits.nums[cur_sensor-2];  // never used in the code
         sensor_data[5] = sensor_hits.nums[cur_sensor-4];
 
@@ -604,9 +611,9 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
         prev_ttf = last_ttf;
         last_ttf = ttf_insertPointer;
         const unsigned int diff_ttf = last_ttf - prev_ttf;
-        DEBUG << "diff_ttf: " << diff_ttf << std::endl;
-        DEBUG << "prev_ttf: " << prev_ttf << std::endl;
-        DEBUG << "last_ttf: " << last_ttf << std::endl;
+        //DEBUG << "diff_ttf: " << diff_ttf << std::endl;
+        //DEBUG << "prev_ttf: " << prev_ttf << std::endl;
+        //DEBUG << "last_ttf: " << last_ttf << std::endl;
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         // 2a. Track forwarding
@@ -622,7 +629,7 @@ std::vector<Track> DataFrame::serialSearchByTriplets() {
         // Get the hits we are going to iterate onto in sh_hit_process,
         // in groups of max NUMTHREADS_X
 
-        DEBUG << "sensor_data[0]: " << sensor_data[0] << std::endl;
+        //DEBUG << "sensor_data[0]: " << sensor_data[0] << std::endl;
         for(int h0_index = sensor_data[0];
             h0_index < sensor_data[0] + sensor_data[SENSOR_DATA_HITNUMS];
             ++h0_index) {
