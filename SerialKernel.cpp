@@ -211,7 +211,7 @@ void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
         //DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
 
         // OA: tracks_to_follow is limited to TTF_MODULO elements.
-        fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
+        fulltrackno = tracks_to_follow[(prev_ttf + ttf_element)];
         // OA: fulltrackno has not only the index into tracks_pointer encoded, but also:
         // bit 31: track_flag is set in the trackCreation function
         // bits 30-28: encodes skipped_modules
@@ -314,7 +314,7 @@ void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
             // Add the tracks to the bag of tracks to_follow
             // XXX OA: no more atomic_add needed
             //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-            tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
+            tracks_to_follow.push_back(trackno);
         }
         // A track just skipped a module
         // We keep it for another round
@@ -324,7 +324,7 @@ void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
 
             // Add the tracks to the bag of tracks to_follow
             //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-            tracks_to_follow[ttf_insertPointer++ % TTF_MODULO] = trackno;
+            tracks_to_follow.push_back(trackno);
         }
         // If there are only three hits in this track,
         // mark it as "doubtful"
@@ -467,8 +467,7 @@ void Event::trackCreation(int* const sensor_data, int* const hit_candidates, int
         // Add the tracks to the bag of tracks to_follow
         // Note: The first bit flag marks this is a tracklet (hitsNum == 3),
         // and hence it is stored in tracklets
-        const unsigned int ttfP = ttf_insertPointer++ % TTF_MODULO;
-        tracks_to_follow[ttfP] = 0x80000000 | new_tracklet_idx;
+        tracks_to_follow.push_back(0x80000000 | new_tracklet_idx);
         //DEBUG << "updated tracks_to_follow " << new_tracklet_idx << std::endl;
     }
 }
@@ -535,7 +534,8 @@ std::vector<Track> Event::serialSearchByTriplets() {
         hit_h2_candidates[i] = -1;
     }
 
-    std::vector<int> tracks_to_follow(TTF_MODULO, 0);
+    //std::vector<int> tracks_to_follow(TTF_MODULO, 0);
+    std::vector<int> tracks_to_follow;
     //int* tracks_to_follow = new int[TTF_MODULO];
 
     std::vector<int> weak_tracks;
@@ -609,7 +609,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
         // Otherwise the three statements from before could be executed before / after updating
         // the values inside trackForwarding
         prev_ttf = last_ttf;
-        last_ttf = ttf_insertPointer;
+        last_ttf = tracks_to_follow.size();
         const unsigned int diff_ttf = last_ttf - prev_ttf;
         //DEBUG << "diff_ttf: " << diff_ttf << std::endl;
         //DEBUG << "prev_ttf: " << prev_ttf << std::endl;
@@ -643,13 +643,13 @@ std::vector<Track> Event::serialSearchByTriplets() {
     }
 
     prev_ttf = last_ttf;
-    last_ttf = ttf_insertPointer;
+    last_ttf = tracks_to_follow.size();
     const unsigned int diff_ttf = last_ttf - prev_ttf;
 
     // Process the last bunch of track_to_follows
     for (unsigned int ttf_element = 0; ttf_element< diff_ttf; ++ttf_element) {
 
-        const int fulltrackno = tracks_to_follow[(prev_ttf + ttf_element) % TTF_MODULO];
+        const int fulltrackno = tracks_to_follow[(prev_ttf + ttf_element)];
         const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
         const int trackno = fulltrackno & 0x0FFFFFFF;
 
