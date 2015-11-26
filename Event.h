@@ -32,7 +32,7 @@ public:
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
 
     void trackForwarding(bool* const hit_used, int& tracks_insertPointer,
-        int* const sensor_data, const unsigned int diff_ttf,
+        int* const sensor_data,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
         struct Track* const tracks);
