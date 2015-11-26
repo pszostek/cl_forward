@@ -31,11 +31,11 @@ public:
         bool* const hit_used, int* const hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
 
-    void trackForwarding(bool* const hit_used, int& tracks_insertPointer,
+    void trackForwarding(bool* const hit_used,
         int* const sensor_data,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
-        struct Track* const tracks);
+        std::vector<struct Track>& tracks);
 
     static float fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2);
