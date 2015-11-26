@@ -193,7 +193,6 @@ void Event::fillCandidates(int* const hit_candidates,
 * @param number_of_hits
 */
 void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
-        int& ttf_insertPointer,
         int* const sensor_data, const unsigned int diff_ttf,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
@@ -362,7 +361,6 @@ void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
 
 void Event::trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
-        int&  ttf_insertPointer,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
     //DEBUG << "trackCreation: " << h0_index << std::endl;
@@ -554,7 +552,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
     // OA: This was an atomic counter to be able to append to the global array tracks_to_follow while
     // processing several envents simultaneously - this will be needed later again probably
     //int* const ttf_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 3;
-    int ttf_insertPointer = 0; // OA: instead we jsut keep a simple counter for book keeping
+    //int ttf_insertPointer = 0; // OA: instead we jsut keep a simple counter for book keeping
     //__global int* const sh_hit_lastPointer = (__global int*) dev_atomicsStorage + ip_shift + 4;
     //__global int* const max_numhits_to_process = (__global int*) dev_atomicsStorage + ip_shift + 5;
 
@@ -618,7 +616,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
 
         // 2a. Track forwarding
         trackForwarding(hit_used,
-            tracks_insertPointer, ttf_insertPointer,
+            tracks_insertPointer,
             sensor_data, diff_ttf, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks);
 
@@ -636,7 +634,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
             if (!hit_used[h0_index]) {
                 trackCreation(sensor_data,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
-                    ttf_insertPointer, tracklets,
+                    tracklets,
                     tracks_to_follow);
             }
         }
