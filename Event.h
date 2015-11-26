@@ -29,11 +29,9 @@ public:
 
     void trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
         bool* const hit_used, int* const hit_h2_candidates,
-        int&  ttf_insertPointer,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
 
     void trackForwarding(bool* const hit_used, int& tracks_insertPointer,
-        int& ttf_insertPointer,
         int* const sensor_data, const unsigned int diff_ttf,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
