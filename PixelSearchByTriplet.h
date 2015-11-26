@@ -14,7 +14,7 @@ enum class ExecMode {Serial, TBB, OpenCl};
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
     std::vector<std::vector<uint8_t> > & output,
-    ExecMode mode);
+    ExecMode mode, OutType outtype);
 
 void independent_post_execute(const std::vector<std::vector<uint8_t> > & output);
 
@@ -38,6 +38,6 @@ int gpuPixelSearchByTripletInvocation(
  */
 int cpuPixelSearchByTripletSerialRun(
         const std::vector<const std::vector<uint8_t>* > & input,
-        std::vector<std::vector<uint8_t> > & output);
+        std::vector<std::vector<uint8_t> > & output, OutType outtype);
 
 #endif
