@@ -192,11 +192,11 @@ void Event::fillCandidates(int* const hit_candidates,
 * @param tracks
 * @param number_of_hits
 */
-void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
+void Event::trackForwarding(bool* const hit_used,
         int* const sensor_data,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
-        struct Track* const tracks) {
+        std::vector<struct Track>& tracks) {
 
     std::vector<int> new_tracks_to_follow;
     for (auto it = tracks_to_follow.begin() + prev_ttf; it != tracks_to_follow.end(); ++it) {
@@ -301,10 +301,11 @@ void Event::trackForwarding(bool* const hit_used, int& tracks_insertPointer,
                 hit_used[t.hits[2]] = true;
 
                 // If it is a track made out of less than or equal than 4 hits,
-                // we have to allocate it in the tracks pointer
+                // we have to allocate it in the tracks vector
                 // XXX OA: no more atomic_add needed
-                //trackno = atomic_add(tracks_insertPointer, 1);
-                trackno = tracks_insertPointer++;
+                trackno = tracks.size();
+                // XXX PS: without this spell the whole thing doesnt work...
+                tracks.push_back(Track());
             }
 
             // Copy the track into tracks
@@ -513,7 +514,9 @@ std::vector<Track> Event::serialSearchByTriplets() {
     // Pointers to data within the event
 
 
-    struct Track* const tracks = new Track[MAX_TRACKS];
+    //struct Track* const tracks = new Track[MAX_TRACKS];
+    std::vector<struct Track> tracks;
+    tracks.reserve(MAX_TRACKS);
     DEBUG << "number of sensors: " << number_of_sensors << std::endl;
     DEBUG << "number of hits: " << number_of_hits << std::endl;
     // Per event datatypes
@@ -522,7 +525,6 @@ std::vector<Track> Event::serialSearchByTriplets() {
     // OA: this is not needed in the serial version as atomic.
     //__global unsigned int* const tracks_insertPointer = (__global unsigned int*) dev_atomicsStorage + event_number;
     // OA: instead we allocate it locally and pass a reference.
-    int tracks_insertPointer = 0;
 
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
@@ -619,7 +621,6 @@ std::vector<Track> Event::serialSearchByTriplets() {
 
         // 2a. Track forwarding
         trackForwarding(hit_used,
-            tracks_insertPointer,
             sensor_data, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks);
 
@@ -671,20 +672,13 @@ std::vector<Track> Event::serialSearchByTriplets() {
         if (!hit_used[t.hits[0]] &&
             !hit_used[t.hits[1]] &&
             !hit_used[t.hits[2]]) {
-            const unsigned int trackno = tracks_insertPointer++;
             ASSERT(trackno < MAX_TRACKS)
-            tracks[trackno] = t;
+            tracks.push_back(t);
         }
     }
-
-    std::vector<Track> return_vector;
-    return_vector.reserve(tracks_insertPointer);
-    for (unsigned int track_idx = 0; track_idx < tracks_insertPointer; ++track_idx)
-        return_vector.push_back(std::move(tracks[track_idx]));
 
     delete[] hit_used;
     delete[] hit_candidates;
     delete[] hit_h2_candidates;
-    delete[] tracks;
-    return return_vector;
+    return tracks;
 }
