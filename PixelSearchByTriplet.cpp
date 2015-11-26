@@ -12,7 +12,7 @@
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
     std::vector<std::vector<uint8_t> > & output,
-    ExecMode mode) {
+    ExecMode mode, OutType outtype) {
 
   std::vector<const std::vector<uint8_t>* > converted_input;
   converted_input.resize(input.size());
@@ -30,7 +30,7 @@ int independent_execute(
   if (mode == ExecMode::OpenCl) {
       return gpuPixelSearchByTripletInvocation(converted_input, output);
   } else if (mode == ExecMode::Serial){
-      return cpuPixelSearchByTripletSerialRun(converted_input, output);
+      return cpuPixelSearchByTripletSerialRun(converted_input, output, outtype);
   } else {
       DEBUG << "not yet implemented";
       return 0;
@@ -87,7 +87,7 @@ int gpuPixelSearchByTripletInvocation(
   */
 int cpuPixelSearchByTripletSerialRun(
         const std::vector<const std::vector<uint8_t>* > & input,
-        std::vector<std::vector<uint8_t> > & output) {
+        std::vector<std::vector<uint8_t> > & output, OutType outtype) {
     DEBUG << "executing cpuPixelSearchByTriplet with " << input.size() << " events" << std::endl;
     output.resize(input.size());
 
@@ -122,15 +122,24 @@ int cpuPixelSearchByTripletSerialRun(
         }
 
         // Print to output file with event no.
-        std::ofstream outfile (std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial.out"));
-        DEBUG << "writing to: " << std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial.out") << std::endl;
-        unsigned int track_idx = 0;
-        for(auto track: tracks) {
-            outfile << "Track #" << track_idx << ", length " << (int) track.hitsNum << std::endl;
-            printTrack(track, zhit_to_module, event, outfile);
-            ++track_idx;
+        if (outtype == OutType::Text) {
+            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial_txt.out");
+            std::ofstream outfile(fileName, std::ios::out);
+            DEBUG << "writing to: " << fileName << std::endl;
+            unsigned int track_idx = 0;
+            for(auto track: tracks) {
+                outfile << "Track #" << track_idx << ", length " << (int) track.hitsNum << std::endl;
+                printTrack(track, zhit_to_module, event, outfile);
+                ++track_idx;
+            }
+            outfile.close();
+        } else if (outtype == OutType::Binary) {
+            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial_bin.out");
+            std::ofstream outfile(fileName, std::ios::out | std::ios::binary);
+            DEBUG << "writing to: " << fileName << std::endl;
+            writeBinTracks(tracks, event, outfile);
+            outfile.close();
         }
-        outfile.close();
     }
 
     return 0;

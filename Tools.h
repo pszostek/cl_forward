@@ -48,6 +48,8 @@ std::string toString(T t){
     return s;
 }
 
+enum class OutType {Binary, Text};
+
 int convertClToString(const char *filename, std::string& s);
 void setHPointersFromInput(uint8_t * input, size_t size,
   int& h_no_sensors, int& h_no_hits, int*& h_sensors_Zs, SensorHits& sensor_hits,
@@ -59,6 +61,7 @@ void quicksort (float* a, float* b, float* c, unsigned int* d, int start, int en
 int divide (float* a, float* b, float* c, unsigned int* d, int first, int last);
 template<typename T> void swap (T& a, T& b);
 void printTrack(const Track& track, const std::map<int, int>& zhit_to_module, const Event& event, std::ofstream& outstream);
+void writeBinTracks(const std::vector<Track>& tracks, const Event& event, std::ofstream& os);
 int findClosestModule(const int z, const std::map<int, int>& zhit_to_module);
 std::map<std::string, float> calcResults(std::vector<float>& times);
 void checkClError (const cl_int errcode_ret);

@@ -29,6 +29,7 @@ void printUsage(char* argv[]){
     std::cerr << "Usage: "
         << argv[0]
         << " -serial|-ocl"
+        << " -bin|-tex"
         << " <comma separated input filenames>"
         << std::endl;
 }
@@ -121,20 +122,31 @@ void readFileIntoVector(std::string filename, std::vector<unsigned char> & outpu
  */
 int main(int argc, char *argv[])
 {
-    std::string filename, mode_opt;
+    std::string filename, mode_opt, out_opt;
+
     // PS: removed, since never used
     // int fileNumber = 1;
     std::string delimiter = ",";
     std::vector<std::vector<unsigned char> > input;
 
     // Get params (getopt independent)
-    if (argc != 3){
+    if (argc != 4){
         printUsage(argv);
         return 0;
     }
 
     mode_opt = std::string(argv[1]);
-    filename = std::string(argv[2]);
+    out_opt = std::string(argv[2]);
+    filename = std::string(argv[3]);
+
+    OutType outtype;
+    if (out_opt.compare("-bin") == 0) {
+        outtype = OutType::Binary;
+    } else if (out_opt.compare("-tex") == 0) {
+        outtype = OutType::Text;
+    } else {
+        std::cout << "Output type " << out_opt << " not known." << std::endl;
+    }
 
     // Check how many files were specified and
     // call the entrypoint with the suggested format
@@ -174,9 +186,9 @@ int main(int argc, char *argv[])
     // Call offloaded algo
     std::vector<std::vector<unsigned char> > output;
     if (mode_opt.compare("-ocl") == 0) {
-        independent_execute(input, output, ExecMode::OpenCl);
+        independent_execute(input, output, ExecMode::OpenCl, outtype);
     } else if (mode_opt.compare("-serial") == 0) {
-        independent_execute(input, output, ExecMode::Serial);
+        independent_execute(input, output, ExecMode::Serial, outtype);
     } else {
         std::cout << "Execution mode " << mode_opt << " not yet supported" << std::endl;
     }
