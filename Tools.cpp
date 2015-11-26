@@ -153,6 +153,23 @@ void checkClError(const cl_int errcode_ret) {
 }
 
 /**
+ * Write tracks in binary format
+ */
+ void writeBinTracks(const std::vector<Track>& tracks, const Event& event, std::ofstream& os) {
+     int ntracks = static_cast<int>(tracks.size());
+     os.write((char*) &ntracks, sizeof(ntracks));
+     for (auto track: tracks) {
+         os.write((char*) &(track.hitsNum), sizeof(track.hitsNum));
+          for(unsigned int hit_idx = 0; hit_idx < track.hitsNum; ++hit_idx){
+            const int hitNumber = track.hits[hit_idx];
+            const unsigned int id = event.hit_IDs[hitNumber];
+            os.write((char*) &id, sizeof(id));
+        }
+
+     }
+ }
+
+/**
  * The z of the hit may not correspond to any z in the sensors.
  * @param  z
  * @param  zhit_to_module
