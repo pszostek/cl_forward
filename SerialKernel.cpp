@@ -39,49 +39,50 @@ std::tuple<int, int, float> Event::findBestFit(const Hit& h0, bool* const hit_us
     for (unsigned int h1_index=first_h1; h1_index < last_h1; ++h1_index) {
         bool is_h1_used = hit_used[h1_index];
 
-        if (!is_h1_used) {
-            h1.x = hits.Xs[h1_index];
-            h1.y = hits.Ys[h1_index];
-            h1.z = hits.Zs[h1_index];
+        if (is_h1_used)
+            continue;
 
-            float dz_inverted = 1.f / (h1.z - h0.z);
+        h1.x = hits.Xs[h1_index];
+        h1.y = hits.Ys[h1_index];
+        h1.z = hits.Zs[h1_index];
 
-            //int first_h2 = hit_h2_candidates[2 * h1_index];
-            // PS: The following variable is removed, since it's never used
-            //last_h2 = hit_h2_candidates[2 * h1_index + 1];
-            //DEBUG << "first_h2 " << first_h2 << std::endl;
+        float dz_inverted = 1.f / (h1.z - h0.z);
 
-            // In case there be no h2 to process,
-            // we can preemptively prevent further processing
-            //inside_bounds &= first_h2 != -1;
+        //int first_h2 = hit_h2_candidates[2 * h1_index];
+        // PS: The following variable is removed, since it's never used
+        //last_h2 = hit_h2_candidates[2 * h1_index + 1];
+        //DEBUG << "first_h2 " << first_h2 << std::endl;
 
-            // Iterate in the third list of hits
-            // Tiled memory access on h2
-            for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
-                const int h2_index = sensor_data[2] + k;
-                struct Hit h2;
-                h2.x = hits.Xs[h2_index];
-                h2.y = hits.Ys[h2_index];
-                h2.z = hits.Zs[h2_index];
+        // In case there be no h2 to process,
+        // we can preemptively prevent further processing
+        //inside_bounds &= first_h2 != -1;
 
-                // Predictions of x and y for this hit
-                const float z2_tz = (h2.z - h0.z) * dz_inverted;
-                const float x = h0.x + (h1.x - h0.x) * z2_tz;
-                const float y = h0.y + (h1.y - h0.y) * z2_tz;
-                const float dx = x - h2.x;
-                const float dy = y - h2.y;
-                if (std::abs(h1.y - h0.y) < dymax &&
-                        std::abs(dx) < PARAM_TOLERANCE &&
-                        std::abs(dy) < PARAM_TOLERANCE) {
-                    // Calculate fit
-                    const float scatterNum = (dx * dx) + (dy * dy);
-                    const float scatterDenom = 1.f / (h2.z - h1.z);
-                    const float scatter = scatterNum * scatterDenom * scatterDenom;
-                    if(scatter < MAX_SCATTER && scatter < best_fit) {
-                        best_fit = scatter;
-                        best_hit_h1 = h1_index;
-                        best_hit_h2 = h2_index;
-                    }
+        // Iterate in the third list of hits
+        // Tiled memory access on h2
+        for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
+            const int h2_index = sensor_data[2] + k;
+            struct Hit h2;
+            h2.x = hits.Xs[h2_index];
+            h2.y = hits.Ys[h2_index];
+            h2.z = hits.Zs[h2_index];
+
+            // Predictions of x and y for this hit
+            const float z2_tz = (h2.z - h0.z) * dz_inverted;
+            const float x = h0.x + (h1.x - h0.x) * z2_tz;
+            const float y = h0.y + (h1.y - h0.y) * z2_tz;
+            const float dx = x - h2.x;
+            const float dy = y - h2.y;
+            if (std::abs(h1.y - h0.y) < dymax &&
+                    std::abs(dx) < PARAM_TOLERANCE &&
+                    std::abs(dy) < PARAM_TOLERANCE) {
+                // Calculate fit
+                const float scatterNum = (dx * dx) + (dy * dy);
+                const float scatterDenom = 1.f / (h2.z - h1.z);
+                const float scatter = scatterNum * scatterDenom * scatterDenom;
+                if(scatter < MAX_SCATTER && scatter < best_fit) {
+                    best_fit = scatter;
+                    best_hit_h1 = h1_index;
+                    best_hit_h2 = h2_index;
                 }
             }
         }
