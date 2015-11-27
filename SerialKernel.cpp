@@ -52,11 +52,11 @@ float Event::fitHitToTrack(const float tx, const float ty,
     const float dz = h2->z - h0->z;
     const float x_prediction = h0->x + tx * dz;
     const float dx = std::abs(x_prediction - h2->x);
-    const bool tolx_condition = dx < PARAM_TOLERANCE;
+    //const bool tolx_condition = dx < PARAM_TOLERANCE;
 
     const float y_prediction = h0->y + ty * dz;
     const float dy = std::abs(y_prediction - h2->y);
-    const bool toly_condition = dy < PARAM_TOLERANCE;
+    //const bool toly_condition = dy < PARAM_TOLERANCE;
 
     // Scatter - Updated to last PrPixel
     const float scatterNum = (dx * dx) + (dy * dy);
@@ -64,9 +64,13 @@ float Event::fitHitToTrack(const float tx, const float ty,
     const float scatter = scatterNum * scatterDenom * scatterDenom;
 
     const bool scatter_condition = scatter < MAX_SCATTER;
-    const bool condition = tolx_condition && toly_condition && scatter_condition;
-
-    return condition * scatter + !condition * MAX_FLOAT;
+    //const bool condition = tolx_condition && toly_condition && scatter_condition;
+    if (dx < PARAM_TOLERANCE &&
+        dy < PARAM_TOLERANCE &&
+        scatter < MAX_SCATTER)
+        return scatter;
+    else
+        return MAX_FLOAT;
 }
 
 /**
