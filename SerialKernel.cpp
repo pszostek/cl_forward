@@ -7,19 +7,6 @@
 #include "KernelDefinitions.h"
 #include "SerialKernel.h"
 
-/**
-* @brief Fits hits to tracks.
-* @details In case the tolerances constraints are met,
-*          returns the chi2 weight of the track. Otherwise,
-*          returns MAX_FLOAT.
-*
-* @param tx
-* @param ty
-* @param h0
-* @param h1_z
-* @param h2
-* @return
-*/
 
 /* This methods takes a h0 hits and looks for the best h1 and h2, somehow.
     first_h1 and last_h1 specify the iteration range, i.e. the function looks in hits[first_h1, last_h1]
@@ -89,6 +76,8 @@ std::tuple<int, int, float> Event::findBestFit(const Hit& h0, bool* const hit_us
     }
     return std::make_tuple(best_hit_h1, best_hit_h2, best_fit);
 }
+
+
 std::pair<float, float> Event::findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
         float xmin_h2, xmax_h2;
         const int z_s0 = sensor_Zs[cur_sensor + 2];
@@ -112,6 +101,21 @@ std::pair<float, float> Event::findH2Boundaries(Hit h0, unsigned int cur_sensor,
         xmax_h2 = x_max + PARAM_TOLERANCE_CANDIDATES;
         return std::make_pair(xmin_h2, xmax_h2);
 }
+
+
+/**
+* @brief Fits hits to tracks.
+* @details In case the tolerances constraints are met,
+*          returns the chi2 weight of the track. Otherwise,
+*          returns MAX_FLOAT.
+*
+* @param tx
+* @param ty
+* @param h0
+* @param h1_z
+* @param h2
+* @return
+*/
 
 float Event::fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2) {
