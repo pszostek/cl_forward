@@ -68,9 +68,6 @@ void Event::fillCandidates(int* const hit_candidates,
         const bool process_h2_candidates = cur_sensor <= number_of_sensors - 3;
 
         // Sensor dependent calculations
-        const int z_s0 = process_h2_candidates ? sensor_Zs[cur_sensor + 2] : 0;
-        const int z_s2 = process_h2_candidates ? sensor_Zs[second_sensor] : 0;
-
         // Iterate in all hits in z0
         for (int h0_element=0; h0_element < sensor_hits.nums[cur_sensor]; ++h0_element) {
             assert(h0_element < sensor_hits.nums[cur_sensor]);
@@ -83,6 +80,9 @@ void Event::fillCandidates(int* const hit_candidates,
 
             float xmin_h2, xmax_h2;
             if (process_h2_candidates) {
+                const int z_s0 = sensor_Zs[cur_sensor + 2];
+                const int z_s2 = sensor_Zs[second_sensor];
+
                 // Note: Here, we take h0 as if it were h1, the rest
                 // of the notation is fine.
 
