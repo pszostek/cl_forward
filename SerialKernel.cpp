@@ -447,13 +447,11 @@ void Event::trackCreation(int* const sensor_data, CandidatesMap& hit_candidates,
                     const float scatterNum = (dx * dx) + (dy * dy);
                     const float scatterDenom = 1.f / (h2.z - h1.z);
                     const float scatter = scatterNum * scatterDenom * scatterDenom;
-                    const bool condition = scatter < MAX_SCATTER;
-                    const float fit = condition * scatter + !condition * MAX_FLOAT;
-
-                    const bool fit_is_better = fit < best_fit;
-                    best_fit = fit_is_better * fit + !fit_is_better * best_fit;
-                    best_hit_h1 = fit_is_better * (h1_index) + !fit_is_better * best_hit_h1;
-                    best_hit_h2 = fit_is_better * (h2_index) + !fit_is_better * best_hit_h2;
+                    if(scatter < MAX_SCATTER && scatter < best_fit) {
+                        best_fit = scatter;
+                        best_hit_h1 = h1_index;
+                        best_hit_h2 = h2_index;
+                    }
                 }
             }
         }
