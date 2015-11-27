@@ -12,7 +12,7 @@
     first_h1 and last_h1 specify the iteration range, i.e. the function looks in hits[first_h1, last_h1]
     */
 
-std::tuple<int, int, float> Event::findBestFit(const Hit& h0, bool* const hit_used, int* const sensor_data, int first_h1, int last_h1) {
+std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>& hit_used, int* const sensor_data, int first_h1, int last_h1) {
     unsigned int best_hit_h1 = 0;
     unsigned int best_hit_h2 = 0;
     float best_fit = MAX_FLOAT;
@@ -270,7 +270,7 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
 * @param tracks
 * @param number_of_hits
 */
-void Event::trackForwarding(bool* const hit_used,
+void Event::trackForwarding(std::vector<bool>& hit_used,
         int* const sensor_data,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
@@ -444,7 +444,7 @@ void Event::trackForwarding(bool* const hit_used,
 */
 
 void Event::trackCreation(int* const sensor_data, CandidatesMap& hit_candidates, int h0_index,
-        bool* const hit_used, CandidatesMap& hit_h2_candidates,
+        std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
     //DEBUG << "trackCreation: " << h0_index << std::endl;
@@ -534,10 +534,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
 
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
-    bool* hit_used = new bool[number_of_hits];
-    for(int i = 0; i < number_of_hits; ++i) {
-        hit_used[i] = false;
-    }
+    std::vector<bool> hit_used = std::vector<bool>(number_of_hits, false);
     CandidatesMap hit_candidates;
     CandidatesMap hit_h2_candidates;
 
@@ -678,6 +675,5 @@ std::vector<Track> Event::serialSearchByTriplets() {
         }
     }
 
-    delete[] hit_used;
     return tracks;
 }
