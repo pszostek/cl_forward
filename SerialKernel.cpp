@@ -21,7 +21,73 @@
 * @return
 */
 
+/* This methods takes a h0 hits and looks for the best h1 and h2, somehow.
+    first_h1 and last_h1 specify the iteration range, i.e. the function looks in hits[first_h1, last_h1]
+    */
 
+std::tuple<int, int, float> Event::findBestFit(const Hit& h0, bool* const hit_used, int* const sensor_data, int first_h1, int last_h1) {
+    unsigned int best_hit_h1 = 0;
+    unsigned int best_hit_h2 = 0;
+    float best_fit = MAX_FLOAT;
+    struct Hit h1;
+
+    // Calculate new dymax
+    const float s1_z = hits.Zs[sensor_data[1]];
+    const float h_dist = std::abs(s1_z - h0.z);
+    const float dymax = PARAM_MAXYSLOPE * h_dist;
+
+    for (unsigned int h1_index=first_h1; h1_index < last_h1; ++h1_index) {
+        bool is_h1_used = hit_used[h1_index];
+
+        if (!is_h1_used) {
+            h1.x = hits.Xs[h1_index];
+            h1.y = hits.Ys[h1_index];
+            h1.z = hits.Zs[h1_index];
+
+            float dz_inverted = 1.f / (h1.z - h0.z);
+
+            //int first_h2 = hit_h2_candidates[2 * h1_index];
+            // PS: The following variable is removed, since it's never used
+            //last_h2 = hit_h2_candidates[2 * h1_index + 1];
+            //DEBUG << "first_h2 " << first_h2 << std::endl;
+
+            // In case there be no h2 to process,
+            // we can preemptively prevent further processing
+            //inside_bounds &= first_h2 != -1;
+
+            // Iterate in the third list of hits
+            // Tiled memory access on h2
+            for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
+                const int h2_index = sensor_data[2] + k;
+                struct Hit h2;
+                h2.x = hits.Xs[h2_index];
+                h2.y = hits.Ys[h2_index];
+                h2.z = hits.Zs[h2_index];
+
+                // Predictions of x and y for this hit
+                const float z2_tz = (h2.z - h0.z) * dz_inverted;
+                const float x = h0.x + (h1.x - h0.x) * z2_tz;
+                const float y = h0.y + (h1.y - h0.y) * z2_tz;
+                const float dx = x - h2.x;
+                const float dy = y - h2.y;
+                if (std::abs(h1.y - h0.y) < dymax &&
+                        std::abs(dx) < PARAM_TOLERANCE &&
+                        std::abs(dy) < PARAM_TOLERANCE) {
+                    // Calculate fit
+                    const float scatterNum = (dx * dx) + (dy * dy);
+                    const float scatterDenom = 1.f / (h2.z - h1.z);
+                    const float scatter = scatterNum * scatterDenom * scatterDenom;
+                    if(scatter < MAX_SCATTER && scatter < best_fit) {
+                        best_fit = scatter;
+                        best_hit_h1 = h1_index;
+                        best_hit_h2 = h2_index;
+                    }
+                }
+            }
+        }
+    }
+    return std::make_tuple(best_hit_h1, best_hit_h2, best_fit);
+}
 std::pair<float, float> Event::findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
         float xmin_h2, xmax_h2;
         const int z_s0 = sensor_Zs[cur_sensor + 2];
@@ -378,88 +444,17 @@ void Event::trackCreation(int* const sensor_data, CandidatesMap& hit_candidates,
 
     //DEBUG << "trackCreation: " << h0_index << std::endl;
     // Track creation starts
-    unsigned int best_hit_h1 = 0;
-    unsigned int best_hit_h2 = 0;
-    struct Hit h0, h1;
-    int first_h1;
-    // PS: Removed, since never used
-    // int last_h2;
-    float dymax;
+    struct Hit h0 = {hits.Xs[h0_index], hits.Ys[h0_index], hits.Zs[h0_index]};
+    unsigned int best_hit_h1, best_hit_h2;
+    float best_fit;
 
-    unsigned int num_h1_to_process = 0;
-    float best_fit = MAX_FLOAT;
-
-    // We will repeat this for performance reasons
-    h0.x = hits.Xs[h0_index];
-    h0.y = hits.Ys[h0_index];
-    h0.z = hits.Zs[h0_index];
-    //if (h0_index == 249)
-    //    DEBUG << "h0_index 249\n";
-
-    // Calculate new dymax
-    const float s1_z = hits.Zs[sensor_data[1]];
-    const float h_dist = std::abs(s1_z - h0.z);
-    dymax = PARAM_MAXYSLOPE * h_dist;
 
     // Only iterate in the hits indicated by hit_candidates :)
-    first_h1 = hit_candidates[h0_index].first;
+    const int first_h1 = hit_candidates[h0_index].first;
     const int last_h1 = hit_candidates[h0_index].second;
-    num_h1_to_process = last_h1 - first_h1;
+
     // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
-    for (unsigned int h1_element=0; h1_element < num_h1_to_process; ++h1_element) {
-        int h1_index = first_h1 + h1_element;
-        bool is_h1_used = hit_used[h1_index];
-        //if (h0_index == 249)
-        //    DEBUG << "h0_249 " << h1_index << " " << is_h1_used << std::endl;
-        float dz_inverted;
-
-        if (!is_h1_used) {
-            h1.x = hits.Xs[h1_index];
-            h1.y = hits.Ys[h1_index];
-            h1.z = hits.Zs[h1_index];
-
-            dz_inverted = 1.f / (h1.z - h0.z);
-
-            //int first_h2 = hit_h2_candidates[2 * h1_index];
-            // PS: The following variable is removed, since it's never used
-            //last_h2 = hit_h2_candidates[2 * h1_index + 1];
-            //DEBUG << "first_h2 " << first_h2 << std::endl;
-
-            // In case there be no h2 to process,
-            // we can preemptively prevent further processing
-            //inside_bounds &= first_h2 != -1;
-
-            // Iterate in the third list of hits
-            // Tiled memory access on h2
-            for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
-                const int h2_index = sensor_data[2] + k;
-                struct Hit h2;
-                h2.x = hits.Xs[h2_index];
-                h2.y = hits.Ys[h2_index];
-                h2.z = hits.Zs[h2_index];
-
-                // Predictions of x and y for this hit
-                const float z2_tz = (h2.z - h0.z) * dz_inverted;
-                const float x = h0.x + (h1.x - h0.x) * z2_tz;
-                const float y = h0.y + (h1.y - h0.y) * z2_tz;
-                const float dx = x - h2.x;
-                const float dy = y - h2.y;
-                if (std::abs(h1.y - h0.y) < dymax &&
-                        std::abs(dx) < PARAM_TOLERANCE &&
-                        std::abs(dy) < PARAM_TOLERANCE) {
-                    // Calculate fit
-                    const float scatterNum = (dx * dx) + (dy * dy);
-                    const float scatterDenom = 1.f / (h2.z - h1.z);
-                    const float scatter = scatterNum * scatterDenom * scatterDenom;
-                    if(scatter < MAX_SCATTER && scatter < best_fit) {
-                        best_fit = scatter;
-                        best_hit_h1 = h1_index;
-                        best_hit_h2 = h2_index;
-                    }
-                }
-            }
-        }
-    }
+    std::tie(best_hit_h1, best_hit_h2, best_fit) = findBestFit(h0, hit_used, sensor_data, first_h1, last_h1);
 
     if (best_fit < MAX_FLOAT) {
         // We have a best fit! - haven't we?

@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstddef>
 #include <cstdint>
+#include <tuple>
 #include <unordered_map>
 #include "KernelDefinitions.h"
 
@@ -12,6 +13,7 @@ using CandidatesMap = std::unordered_map<int, std::pair<int, int>>;
 class Event {
 private:
     std::pair<float, float> findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
+    std::tuple<int, int, float> findBestFit(const Hit& h0, bool* const hit_used, int* const sensor_data, int first_h1, int last_h1);
 //private:
 public:
     int number_of_sensors;
