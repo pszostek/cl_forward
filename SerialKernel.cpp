@@ -2,6 +2,7 @@
 #include <cfloat>
 #include <cmath>
 #include <cassert>
+#include <utility>
 #include "Logger.h"
 #include "KernelDefinitions.h"
 #include "SerialKernel.h"
@@ -19,6 +20,30 @@
 * @param h2
 * @return
 */
+
+std::pair<float, float> Event::findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
+        float xmin_h2, xmax_h2;
+        const int z_s0 = sensor_Zs[cur_sensor + 2];
+        const int z_s2 = sensor_Zs[second_sensor];
+
+        // Note: Here, we take h0 as if it were h1, the rest
+        // of the notation is fine.
+
+        // Min and max possible x0s
+        const float h_dist = std::abs(h0.z - z_s0);
+        const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
+        const float x0_min = h0.x - dxmax;
+        const float x0_max = h0.x + dxmax;
+
+        // Min and max possible h1s for that h0
+        float z2_tz = (((float) z_s2 - z_s0)) / (h0.z - z_s0);
+        const float x_min = x0_max + (h0.x - x0_max) * z2_tz;
+        xmin_h2 = x_min - PARAM_TOLERANCE_CANDIDATES;
+
+        const float x_max = x0_min + (h0.x - x0_min) * z2_tz;
+        xmax_h2 = x_max + PARAM_TOLERANCE_CANDIDATES;
+        return std::make_pair(xmin_h2, xmax_h2);
+}
 
 float Event::fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2) {
@@ -79,27 +104,7 @@ void Event::fillCandidates(int* const hit_candidates,
             const int hitnums_s2 = sensor_hits.nums[second_sensor];
 
             float xmin_h2, xmax_h2;
-            if (process_h2_candidates) {
-                const int z_s0 = sensor_Zs[cur_sensor + 2];
-                const int z_s2 = sensor_Zs[second_sensor];
-
-                // Note: Here, we take h0 as if it were h1, the rest
-                // of the notation is fine.
-
-                // Min and max possible x0s
-                const float h_dist = std::abs(h0.z - z_s0);
-                const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
-                const float x0_min = h0.x - dxmax;
-                const float x0_max = h0.x + dxmax;
-
-                // Min and max possible h1s for that h0
-                float z2_tz = (((float) z_s2 - z_s0)) / (h0.z - z_s0);
-                float x = x0_max + (h0.x - x0_max) * z2_tz;
-                xmin_h2 = x - PARAM_TOLERANCE_CANDIDATES;
-
-                x = x0_min + (h0.x - x0_min) * z2_tz;
-                xmax_h2 = x + PARAM_TOLERANCE_CANDIDATES;
-            }
+            std::tie(xmin_h2, xmax_h2) = findH2Boundaries(h0, cur_sensor, second_sensor);
 
             if (cur_sensor >= 4) {
                 bool first_h1_found = false, last_h1_found = false;

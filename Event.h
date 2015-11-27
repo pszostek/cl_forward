@@ -8,6 +8,8 @@
 
 
 class Event {
+private:
+    std::pair<float, float> findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
 //private:
 public:
     int number_of_sensors;
