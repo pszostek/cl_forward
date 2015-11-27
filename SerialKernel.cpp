@@ -270,10 +270,11 @@ void Event::trackForwarding(bool* const hit_used,
             h2.z = hits.Zs[h2_index];
 
             const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
-            const bool fit_is_better = fit < best_fit;
 
-            best_fit = fit_is_better * fit + !fit_is_better * best_fit;
-            best_hit_h2 = fit_is_better * h2_index + !fit_is_better * best_hit_h2;
+            if (fit < best_fit) {
+                best_fit = fit;
+                best_hit_h2 = h2_index;
+            }
         }
 
 
