@@ -7,12 +7,12 @@ function tracks_in_reference() {
 }
 
 function current_tracks() {
-    ./clpixel -serial mcdata/$1.dat >/dev/null
-    echo $($READER results/0_serial.out --tracks)
+    ./clpixel -serial -tex mcdata/$1.dat >/dev/null
+    echo $($READER results/0_serial_txt.out --tracks)
 }
 
 function match() {
-   $READER results/0_serial.out results_serial/$1.out --test-equal > /dev/null
+   $READER results/0_serial_txt.out results_serial/$1.out --test-equal > /dev/null
 }
 
 set $(seq 0 50) 77
