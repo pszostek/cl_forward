@@ -61,8 +61,7 @@ float Event::fitHitToTrack(const float tx, const float ty,
 void Event::fillCandidates(int* const hit_candidates,
         int* const hit_h2_candidates) {
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
-    int cur_sensor = number_of_sensors - 1;
-    while (cur_sensor >= 2) {
+    for(unsigned int cur_sensor = number_of_sensors - 1; cur_sensor >= 2; --cur_sensor) {
         const int second_sensor = cur_sensor - 2;
 
         const bool process_h1_candidates = cur_sensor >= 4;
@@ -171,8 +170,6 @@ void Event::fillCandidates(int* const hit_candidates,
                 }
             }
         }
-
-        --cur_sensor;
     }
 }
 
