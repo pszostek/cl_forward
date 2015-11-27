@@ -15,6 +15,7 @@ function match() {
    $READER results/0_serial_txt.out results_serial/$1.out --test-equal > /dev/null
 }
 
+
 set $(seq 0 50) 77
 
 echo   "--------+------+------+-------+"
