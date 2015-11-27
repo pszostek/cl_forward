@@ -644,10 +644,8 @@ std::vector<Track> Event::serialSearchByTriplets() {
         }
     }
 
-    prev_ttf = last_ttf;
-
     // Process the last bunch of track_to_follows
-    for (unsigned int ttf_element = prev_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
+    for (unsigned int ttf_element = last_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
 
         const int fulltrackno = tracks_to_follow[ttf_element];
         const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
