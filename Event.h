@@ -4,8 +4,10 @@
 #include <vector>
 #include <cstddef>
 #include <cstdint>
+#include <unordered_map>
 #include "KernelDefinitions.h"
 
+using CandidatesMap = std::unordered_map<int, std::pair<int, int>>;
 
 class Event {
 private:
@@ -26,11 +28,11 @@ public:
     template<typename T> static void swap (T& a, T& b);
     static int divide (float* a, float* b, float* c, unsigned int* d, int start, int end);
 
-    void fillCandidates(int* const hit_candidates,
-        int* const hit_h2_candidates);
+    void fillCandidates(CandidatesMap& hit_candidates,
+        CandidatesMap& hit_h2_candidates);
 
-    void trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
-        bool* const hit_used, int* const hit_h2_candidates,
+    void trackCreation(int* const sensor_data, CandidatesMap& hit_candidates, int h0_index,
+        bool* const hit_used, CandidatesMap& hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
 
     void trackForwarding(bool* const hit_used,

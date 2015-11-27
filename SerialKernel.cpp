@@ -21,6 +21,7 @@
 * @return
 */
 
+
 std::pair<float, float> Event::findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
         float xmin_h2, xmax_h2;
         const int z_s0 = sensor_Zs[cur_sensor + 2];
@@ -83,8 +84,8 @@ float Event::fitHitToTrack(const float tx, const float ty,
 */
 
 // this guy should return <hit_candidates, hit_h2_candidates>
-void Event::fillCandidates(int* const hit_candidates,
-        int* const hit_h2_candidates) {
+void Event::fillCandidates(CandidatesMap& hit_candidates,
+        CandidatesMap& hit_h2_candidates) {
     //const int blockDim_product = get_local_size(0) * get_local_size(1);
     for(unsigned int cur_sensor = number_of_sensors - 1; cur_sensor >= 2; --cur_sensor) {
         const int second_sensor = cur_sensor - 2;
@@ -127,14 +128,14 @@ void Event::fillCandidates(int* const hit_candidates,
                         if (!first_h1_found && tol_condition) {
                             ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                            hit_candidates[2 * h0_index] = h1_index;
+                            hit_candidates[h0_index].first = h1_index;
                             first_h1_found = true;
                         }
                         // The last one, only if the first one has already been found
                         else if (first_h1_found && !tol_condition) {
                             ASSERT(2 * h0_index + 1 < 2 * (sensor_hit.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                            hit_candidates[2 * h0_index + 1] = h1_index;
+                            hit_candidates[h0_index].second = h1_index;
                             last_h1_found = true;
                         }
                     }
@@ -143,13 +144,13 @@ void Event::fillCandidates(int* const hit_candidates,
                         if (!first_h2_found && h1.x > xmin_h2) {
                             ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                            hit_h2_candidates[2 * h0_index] = h1_index;
+                            hit_h2_candidates[h0_index].first = h1_index;
                             first_h2_found = true;
                         }
                         else if (first_h2_found && h1.x > xmax_h2) {
                             ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                            hit_h2_candidates[2 * h0_index + 1] = h1_index;
+                            hit_h2_candidates[h0_index].second = h1_index;
                             last_h2_found = true;
                         }
                     }
@@ -165,13 +166,13 @@ void Event::fillCandidates(int* const hit_candidates,
                 if (process_h1_candidates && first_h1_found && !last_h1_found) {
                     ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                    hit_candidates[2 * h0_index + 1] = hitstarts_s2 + hitnums_s2;
+                    hit_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
                 }
 
                 if (process_h2_candidates && first_h2_found && !last_h2_found) {
                     ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                    hit_h2_candidates[2 * h0_index + 1] = hitstarts_s2 + hitnums_s2;
+                    hit_h2_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
                 }
             }
         }
@@ -367,8 +368,8 @@ void Event::trackForwarding(bool* const hit_used,
 * @param tracks_to_follow
 */
 
-void Event::trackCreation(int* const sensor_data, int* const hit_candidates, int h0_index,
-        bool* const hit_used, int* const hit_h2_candidates,
+void Event::trackCreation(int* const sensor_data, CandidatesMap& hit_candidates, int h0_index,
+        bool* const hit_used, CandidatesMap& hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
     //DEBUG << "trackCreation: " << h0_index << std::endl;
@@ -397,8 +398,8 @@ void Event::trackCreation(int* const sensor_data, int* const hit_candidates, int
     dymax = PARAM_MAXYSLOPE * h_dist;
 
     // Only iterate in the hits indicated by hit_candidates :)
-    first_h1 = hit_candidates[2 * h0_index];
-    const int last_h1 = hit_candidates[2 * h0_index + 1];
+    first_h1 = hit_candidates[h0_index].first;
+    const int last_h1 = hit_candidates[h0_index].second;
     num_h1_to_process = last_h1 - first_h1;
     // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
     for (unsigned int h1_element=0; h1_element < num_h1_to_process; ++h1_element) {
@@ -532,14 +533,11 @@ std::vector<Track> Event::serialSearchByTriplets() {
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
     bool* hit_used = new bool[number_of_hits];
-    int* hit_candidates = new int[2 * number_of_hits];
-    int* hit_h2_candidates = new int[2 * number_of_hits];
-    for (int i = 0; i < 2*number_of_hits; ++i)
-    {
-        hit_used[i/2] = false;
-        hit_candidates[i] = -1;
-        hit_h2_candidates[i] = -1;
+    for(int i = 0; i < number_of_hits; ++i) {
+        hit_used[i] = false;
     }
+    CandidatesMap hit_candidates;
+    CandidatesMap hit_h2_candidates;
 
     //std::vector<int> tracks_to_follow(TTF_MODULO, 0);
     std::vector<int> tracks_to_follow;
@@ -679,7 +677,5 @@ std::vector<Track> Event::serialSearchByTriplets() {
     }
 
     delete[] hit_used;
-    delete[] hit_candidates;
-    delete[] hit_h2_candidates;
     return tracks;
 }
