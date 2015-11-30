@@ -11,7 +11,7 @@ import event_model
 def main():
     """The main function"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('files', metavar='FILE', type=str, nargs='+', help='files to be compared')
+    parser.add_argument('files', metavar='FILE', type=str, nargs=2, help='files to be compared')
     parser.add_argument('--print-difference', dest='print_difference', action="store_true", default=False, help='Print tracks present in the second file,'
                         'but not in the first one')
     parser.add_argument('--test-equal', dest="test_equal", action="store_true", default=False, help='Test two files for equality')
@@ -27,10 +27,7 @@ def main():
             exit(errno.ENOENT)
 
     tracks1 = event_model.read_txt_trackfile(args.files[0])
-    try:
-        tracks2 = event_model.read_txt_trackfile(args.files[1])
-    except IndexError:  # it will be raised if there is only one file
-        tracks2 = None
+    tracks2 = event_model.read_txt_trackfile(args.files[1])
 
     if verbose:
         print("Number of tracks in %s: %d" % (args.files[0], len(tracks1)))
