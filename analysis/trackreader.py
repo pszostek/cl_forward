@@ -71,15 +71,11 @@ def main():
         exit(0)
 
     elif args.print_difference:
-
-        for i,t2 in enumerate(tracks2):
-            eq = False
-            for k,t1 in enumerate(tracks1):
-                eq = eq or (t1 == t2)
-            if not eq:
-                print(t2)
+        difftracks = (tracks1 | tracks2) - (tracks1 & tracks2)
+        for diff in sorted(difftracks):
+            print(diff)
     else:
-        print("Ooops.. How about saying what should I do?")
+        print("Ooops.. How about saying what I should do?")
         exit(errno.EAGAIN)
 
 if __name__ == "__main__":
