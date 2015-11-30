@@ -5,19 +5,28 @@ class Event(object):
     """A SOA datastructure for events"""
 
     def __init__(self, sensor_Zs, sensor_hitStarts, sensor_hitNums,
-        hit_IDs, hit_Xs, hit_Ys, hit_Zs, mcp_to_hits=None):
+        hit_IDs, hit_Xs, hit_Ys, hit_Zs, hits, mcp_to_hits=None):
         self.sensor_Zs = sensor_Zs
         self.sensor_hitStarts = sensor_hitStarts
         self.sensor_hitNums = sensor_hitNums
         self.hit_IDs = hit_IDs
         self.hit_Xs, self.hit_Ys, self.hit_Zs = hit_Xs, hit_Ys, hit_Zs
+        self.hits = hits
+
+        self.hits_by_id = {hit.hitID:hit for hit in self.hits}
+
         self.mcp_to_hits = mcp_to_hits
-        self.hit_to_mcp = {h:[] for h in self.hit_IDs}
-        for mcp,mhits in mcp_to_hits.iteritems():
-            for hit in mhits:
-                self.hit_to_mcp[hit].append(mcp)
+        self.hit_to_mcp = None
+        self.particles = None
+        if self.mcp_to_hits is not None:
+            self.particles = list(self.mcp_to_hits.keys())
+            self.hit_to_mcp = {h:[] for h in self.hits}
+            for mcp,mhits in mcp_to_hits.iteritems():
+                for hit in mhits:
+                    self.hit_to_mcp[hit].append(mcp)
 
-
+    def get_hit(self, hitID):
+        return self.hits_by_id[hitID]
 
 class MCParticle(object):
     """Store information about a Monte-Carlo simulation particle"""
@@ -159,17 +168,18 @@ def read_datfile(filename):
         no_mcp, = unpack('i', bindata[pos:pos+4])
         pos += 4
         for _ in range(no_mcp):
-            mcpid, nh = unpack('ii', bindata[pos:pos+8])
-            pos += 8
+            mcpkey, mcpid, nh = unpack('iii', bindata[pos:pos+12])
+            pos += 12
             mcp_hitIDs = unpack('i'*nh, bindata[pos:pos+nh*4])
             pos += nh*4
             hdict = {h.hitID:h for h in hits}
             trackhits = [hdict[hid] for hid in mcp_hitIDs]
-            mcp_to_hits[mcpid] = trackhits
+            mcp_to_hits[MCParticle(mcpkey, mcpid, trackhits)] = trackhits
+            #mcp_to_hits[mcpid] = mcp_hitIDs
     return Event(sensor_Zs, sensor_hitStarts, sensor_hitNums,
-            hit_IDs, hit_Xs, hit_Ys, hit_Zs, mcp_to_hits), hits
+            hit_IDs, hit_Xs, hit_Ys, hit_Zs, hits, mcp_to_hits)
 
-def read_bin_trackfile(filename, hits=None):
+def read_bin_trackfile(filename, event=None):
     with open(filename,'rb') as f:
         bindata = f.read()
     pos = 0
@@ -180,17 +190,16 @@ def read_bin_trackfile(filename, hits=None):
         nhits, = unpack('i', bindata[pos:pos+4])
         pos += 4
         track_hitIDs = unpack('i'*nhits, bindata[pos:pos+nhits*4])
-        if hits is None:
+        if event is None:
             trackhits = [Hit(hid) for hid in track_hitIDs]
         else:
-            hdict = {h.hitID:h for h in hits}
-            trackhits = [hdict[hid] for hid in track_hitIDs]
+            trackhits = [event.hits_by_id[hid] for hid in track_hitIDs]
         pos += nhits*4
         tracks.add(Track(itrack, trackhits))
     return tracks
 
 
-def read_txt_trackfile(filename):
+def read_txt_trackfile(filename, event=None):
     """A simple cl_forward output file parser.
 
     returns a set of tracks in the file
@@ -208,8 +217,12 @@ def read_txt_trackfile(filename):
                     flds = hitline.strip().split()
                     hitID, module = int(flds[0]),int(flds[3][:-1])
                     #self.hitNum = int(flds[1][1:-1])
-                    x, y, z = float(flds[5][:-1]), float(flds[7][:-1]), float(flds[9])
-                    trackhits.append(Hit(hitID, x, y, z, module))
+                    if event is None:
+                        x, y, z = float(flds[5][:-1]), float(flds[7][:-1]), float(flds[9])
+                        hit = Hit(hitID, x, y, z, module)
+                    else:
+                        hit = event.get_hit(hitID)
+                    trackhits.append(hit)
                 track = Track(tid,trackhits)
                 tracks.add(track)
             line = tf.readline()
