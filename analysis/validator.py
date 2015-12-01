@@ -27,35 +27,49 @@ def track_association(tracks, particles, weights):
 
 
 
-
-
 def main():
     """The main function"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('trackfile', metavar='TRACKFILE', type=str, help='track file to be validated')
-    parser.add_argument('-e', '--event', metavar='EVENTFILE', type=str, required=True, help='Event dat file including MCP table')
+    parser.add_argument('trackfiles', metavar='TRACKFILE', nargs='+', type=str, help='txt or bin track file to be validated')
+    parser.add_argument('-e', '--events', metavar='EVENTFILE', nargs='+', type=str, help='event file to be used in conjunction with txt track file')
     parser.add_argument('-b', '--bintracks', action="store_true", default=True, help='treat track file as binary (default True)')
     parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", default=False)
     args = parser.parse_args()
 
     verbose = args.verbose
 
+    for trackfile in args.trackfiles:
+        if not os.path.exists(trackfile):
+            print("Track file doesn't exist: %s." % trackfile)
+            exit(errno.ENOENT)
 
-    if not os.path.exists(args.trackfile):
-        print("File doesn't exist: %s." % args.trackfile)
-        exit(errno.ENOENT)
-    if not os.path.exists(args.event):
-        print("File doesn't exist: %s." % args.eventfile)
-        exit(errno.ENOENT)
+    tracking_data = []
 
-    event = event_model.read_datfile(args.event)
     if args.bintracks:
-        tracks = event_model.read_bin_trackfile(args.trackfile, event)
+        for trackfile in args.trackfiles:
+            event, tracks = event_model.read_bin_trackfile(trackfile)
+            tracks = list(tracks) # here we prefer tracks to be a list.
+            tracking_data.append((event, tracks))
     else:
-        tracks = event_model.read_txt_trackfile(args.trackfile, event)
-    tracks = list(tracks) # here we prefer tracks to be a list.
+        if len(args.trackfiles) != len(args.events):
+            print("Error: Same number of event and txt track files must be provided.")
+            exit(errno.ENOENT)
+        for trackfile, eventfile in zip(args.trackfiles, args.events):
+            if not os.path.exists(eventfile):
+                print("Evnet file doesn't exist: %s." % args.trackfile)
+                exit(errno.ENOENT)
+            event = event_model.read_datfile(eventfile)
+            tracks = event_model.read_txt_trackfile(trackfile, event)
+            tracks = list(tracks) # here we prefer tracks to be a list.
+            tracking_data.append((event, tracks))
 
-    weights = comp_weights(tracks, event.particles, event.hit_to_mcp)
+    for e,ts in tracking_data:
+        for t in ts:
+            print t
+    #weights = comp_weights(tracks, event.particles, event.hit_to_mcp)
+    #track_to_particle = track_association(tracks, event.particles, weights)
+
+# calcualte hit efficiency
 
 
 if __name__ == "__main__":

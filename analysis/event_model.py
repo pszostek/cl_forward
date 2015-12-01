@@ -176,13 +176,17 @@ def read_datfile(filename):
             trackhits = [hdict[hid] for hid in mcp_hitIDs]
             mcp_to_hits[MCParticle(mcpkey, mcpid, trackhits)] = trackhits
             #mcp_to_hits[mcpid] = mcp_hitIDs
-    return Event(sensor_Zs, sensor_hitStarts, sensor_hitNums,
-            hit_IDs, hit_Xs, hit_Ys, hit_Zs, hits, mcp_to_hits)
+    if pos < dataLen + header_sz:
+        # if there is even more data, return access to the caller
+        # he'll know what to do with it
+        return Event(sensor_Zs, sensor_hitStarts, sensor_hitNums,
+                hit_IDs, hit_Xs, hit_Ys, hit_Zs, hits, mcp_to_hits),(bindata,pos)
+    else:
+        return Event(sensor_Zs, sensor_hitStarts, sensor_hitNums,
+                hit_IDs, hit_Xs, hit_Ys, hit_Zs, hits, mcp_to_hits)
 
-def read_bin_trackfile(filename, event=None):
-    with open(filename,'rb') as f:
-        bindata = f.read()
-    pos = 0
+def read_bin_trackfile(filename):
+    event, (bindata, pos) = read_datfile(filename)
     nTracks, = unpack('i',bindata[pos:pos+4])
     pos += 4
     tracks = set()
@@ -196,7 +200,7 @@ def read_bin_trackfile(filename, event=None):
             trackhits = [event.hits_by_id[hid] for hid in track_hitIDs]
         pos += nhits*4
         tracks.add(Track(itrack, trackhits))
-    return tracks
+    return event, tracks
 
 
 def read_txt_trackfile(filename, event=None):
