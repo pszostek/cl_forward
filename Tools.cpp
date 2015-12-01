@@ -153,20 +153,45 @@ void checkClError(const cl_int errcode_ret) {
 }
 
 /**
- * Write tracks in binary format
+ * Write tracks in binary format.
+ * We write both the event information as well as the tracks themselves. This will make
+ * post-processing easier
  */
  void writeBinTracks(const std::vector<Track>& tracks, const Event& event, std::ofstream& os) {
+
+     // first get position and value of infile data size
+     std::ifstream infile(event.filename.c_str(), std::ifstream::binary);
+
+     uint32_t funcNameLen;
+     uint32_t dataSize;
+
+     infile.read((char*) &funcNameLen, sizeof(uint32_t));
+     infile.seekg(4+funcNameLen);
+     infile.read((char*) &dataSize, sizeof(uint32_t));
+     infile.seekg(0);
+     // copy data to output file
+     os << infile.rdbuf();
+     infile.close();
+
+     // write track info while keeping track of extra bytes written
+     uint32_t extra_bytes = 0;
      int ntracks = static_cast<int>(tracks.size());
      os.write((char*) &ntracks, sizeof(ntracks));
+     extra_bytes += sizeof(ntracks);
      for (auto track: tracks) {
          os.write((char*) &(track.hitsNum), sizeof(track.hitsNum));
+         extra_bytes += sizeof(track.hitsNum);
           for(unsigned int hit_idx = 0; hit_idx < track.hitsNum; ++hit_idx){
             const int hitNumber = track.hits[hit_idx];
             const unsigned int id = event.hit_IDs[hitNumber];
             os.write((char*) &id, sizeof(id));
+            extra_bytes += sizeof(id);
         }
-
      }
+     // update file size in header
+     dataSize += extra_bytes;
+     os.seekp(4+funcNameLen);
+     os.write((char*) &dataSize, sizeof(uint32_t));
  }
 
 /**
