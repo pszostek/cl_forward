@@ -12,6 +12,7 @@
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
     std::vector<std::vector<uint8_t> > & output,
+    std::vector<std::string> &filenames,
     ExecMode mode, OutType outtype) {
 
   std::vector<const std::vector<uint8_t>* > converted_input;
@@ -30,7 +31,7 @@ int independent_execute(
   if (mode == ExecMode::OpenCl) {
       return gpuPixelSearchByTripletInvocation(converted_input, output);
   } else if (mode == ExecMode::Serial){
-      return cpuPixelSearchByTripletSerialRun(converted_input, output, outtype);
+      return cpuPixelSearchByTripletSerialRun(converted_input, output, filenames, outtype);
   } else {
       DEBUG << "not yet implemented";
       return 0;
@@ -87,7 +88,7 @@ int gpuPixelSearchByTripletInvocation(
   */
 int cpuPixelSearchByTripletSerialRun(
         const std::vector<const std::vector<uint8_t>* > & input,
-        std::vector<std::vector<uint8_t> > & output, OutType outtype) {
+        std::vector<std::vector<uint8_t> > & output, std::vector<std::string> &filenames, OutType outtype) {
     DEBUG << "executing cpuPixelSearchByTriplet with " << input.size() << " events" << std::endl;
     output.resize(input.size());
 
@@ -95,7 +96,7 @@ int cpuPixelSearchByTripletSerialRun(
         DEBUG << "Processing data frame " << input_index << std::endl;
 
         const std::vector<uint8_t>* event_input = input[input_index];
-        Event event((uint8_t*) &(*event_input)[0], event_input->size());
+        Event event((uint8_t*) &(*event_input)[0], event_input->size(), filenames[input_index]);
         auto tracks = event.serialSearchByTriplets();
         DEBUG << "Done. Found " << tracks.size() <<" tracks." << std::endl;
 
@@ -121,9 +122,13 @@ int cpuPixelSearchByTripletSerialRun(
             }
         }
 
+        char *c_inputfname = new char[event.filename.size()];
+        std::strcpy(c_inputfname, event.filename.c_str());
+        const char *c_inputbase = basename(c_inputfname);
+        std::string input_basename(c_inputbase);
         // Print to output file with event no.
         if (outtype == OutType::Text) {
-            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial_txt.out");
+            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + input_basename.substr(0,input_basename.size() - 4) + std::string("_serial_txt.out");
             std::ofstream outfile(fileName, std::ios::out);
             DEBUG << "writing to: " << fileName << std::endl;
             unsigned int track_idx = 0;
@@ -134,7 +139,7 @@ int cpuPixelSearchByTripletSerialRun(
             }
             outfile.close();
         } else if (outtype == OutType::Binary) {
-            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + toString(input_index) + std::string("_serial_bin.out");
+            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + input_basename.substr(0,input_basename.size() - 4) + std::string("_serial_bin.out");
             std::ofstream outfile(fileName, std::ios::out | std::ios::binary);
             DEBUG << "writing to: " << fileName << std::endl;
             writeBinTracks(tracks, event, outfile);
