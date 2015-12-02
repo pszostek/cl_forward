@@ -17,15 +17,29 @@ def comp_weights(tracks, particles, hit_to_mcp):
         w[i,j] = float(nhits_from_p)/nhits
     return w
 
-def track_association(tracks, particles, weights):
-    track_to_particle = {}
+def hit_purity(tracks, particles, weights):
+    track_to_particle = {t:(0.0, None) for t in tracks}
     for i in range(len(tracks)):
         wtp, nwtp = np.max(weights[i,:]), np.argmax(weights[i,:])
         if wtp > 0.7:
-            track_to_particle[tracks[i]] = particles[nwtp]
+            track_to_particle[tracks[i]] = (wtp, particles[nwtp])
+        else:
+            track_to_particle[tracks[i]] = (wtp, None)
     return track_to_particle
 
+def hit_efficinecy(track_to_particle, hit_to_mcp, mcp_to_hits):
+    hit_eff = {}
+    for track, (hp, particle) in track_to_particle.iteritems():
+        if particle is None:
+            continue # no particle assoicated
+        hits_p_on_t = sum([hit_to_mcp[h].count(particle) for h in track.hits])
+        hit_eff[(track, particle)] = float(hits_p_on_t)/len(mcp_to_hits[particle])
+    return hit_eff
 
+def track_recoeff(track_to_particle, particles):
+    nreconstructible = len(particles)
+    nreconstructed = len(set([pp[1] for _,pp in track_to_particle.iteritems() if pp[1] is not None]))
+    return float(nreconstructed)/nreconstructible
 
 def main():
     """The main function"""
@@ -44,7 +58,8 @@ def main():
             exit(errno.ENOENT)
 
     tracking_data = []
-
+    if verbose:
+        print("Reading data: ")
     if args.bintracks:
         for trackfile in args.trackfiles:
             event, tracks = event_model.read_bin_trackfile(trackfile)
@@ -63,13 +78,19 @@ def main():
             tracks = list(tracks) # here we prefer tracks to be a list.
             tracking_data.append((event, tracks))
 
-    for e,ts in tracking_data:
-        for t in ts:
-            print t
-    #weights = comp_weights(tracks, event.particles, event.hit_to_mcp)
-    #track_to_particle = track_association(tracks, event.particles, weights)
-
-# calcualte hit efficiency
+    if verbose:
+        print(" done.")
+    avg_recoeff = 0.0
+    for i, (event, tracks) in enumerate(tracking_data):
+        weights = comp_weights(tracks, event.particles, event.hit_to_mcp)
+        track_to_particle = hit_purity(tracks, event.particles, weights)
+        hit_eff = hit_efficinecy(track_to_particle, event.hit_to_mcp, event.mcp_to_hits)
+        #for k,v in hit_eff.iteritems():
+        #    print k[0].tid,k[1].pkey,v
+        recoeff = track_recoeff(track_to_particle, event.particles)
+        print recoeff
+        avg_recoeff += recoeff
+    print("Average reconstruction efficiency: ",avg_recoeff/len(tracking_data))
 
 
 if __name__ == "__main__":
