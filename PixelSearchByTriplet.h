@@ -8,12 +8,14 @@
 #include "Logger.h"
 
 #include <stdint.h>
+#include <libgen.h>
 
 enum class ExecMode {Serial, TBB, OpenCl};
 
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
     std::vector<std::vector<uint8_t> > & output,
+    std::vector<std::string> &filenames,
     ExecMode mode, OutType outtype);
 
 void independent_post_execute(const std::vector<std::vector<uint8_t> > & output);
@@ -38,6 +40,7 @@ int gpuPixelSearchByTripletInvocation(
  */
 int cpuPixelSearchByTripletSerialRun(
         const std::vector<const std::vector<uint8_t>* > & input,
-        std::vector<std::vector<uint8_t> > & output, OutType outtype);
+        std::vector<std::vector<uint8_t> > & output,
+        std::vector<std::string> &filenames, OutType outtype);
 
 #endif

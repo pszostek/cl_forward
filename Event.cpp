@@ -2,7 +2,7 @@
 #include <cstddef>
 #include "Event.h"
 
-Event::Event(uint8_t * input, size_t size) {
+Event::Event(uint8_t * input, size_t size, std::string &fname) : filename(fname) {
     uint8_t * end = input + size;
     number_of_sensors   = *((int32_t*)input); input += sizeof(int32_t);
     number_of_hits      = *((int32_t*)input); input += sizeof(int32_t);
@@ -13,7 +13,6 @@ Event::Event(uint8_t * input, size_t size) {
     hits.Xs             = (float*)  input; input += sizeof(float)   * number_of_hits;
     hits.Ys             = (float*)  input; input += sizeof(float)   * number_of_hits;
     hits.Zs             = (float*)  input; input += sizeof(float)   * number_of_hits;
-
 }
 
 Event::~Event() {};
