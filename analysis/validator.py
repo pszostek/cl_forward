@@ -36,10 +36,21 @@ def hit_efficinecy(track_to_particle, hit_to_mcp, mcp_to_hits):
         hit_eff[(track, particle)] = float(hits_p_on_t)/len(mcp_to_hits[particle])
     return hit_eff
 
+def reconstructed(track_to_particle):
+    return set([pp[1] for _,pp in track_to_particle.iteritems() if pp[1] is not None])
+
 def track_recoeff(track_to_particle, particles):
     nreconstructible = len(particles)
-    nreconstructed = len(set([pp[1] for _,pp in track_to_particle.iteritems() if pp[1] is not None]))
+    nreconstructed = len(reconstructed(track_to_particle))
     return float(nreconstructed)/nreconstructible
+
+def ghosts(track_to_particle):
+    return [t for t,pp in track_to_particle.iteritems() if pp[1] is None]
+
+def ghost_rate(track_to_particle):
+    ntracks = len(track_to_particle.keys())
+    nghosts = len(ghosts(track_to_particle))
+    return float(nghosts)/ntracks
 
 def main():
     """The main function"""
@@ -81,16 +92,31 @@ def main():
     if verbose:
         print(" done.")
     avg_recoeff = 0.0
+    avg_ghost_rate = 0.0
+    n_allghsots = 0
+    n_allreco = 0
+    n_allparticles = 0
+    avg_purity = 0.0
+    avg_hiteff = 0.0
     for i, (event, tracks) in enumerate(tracking_data):
         weights = comp_weights(tracks, event.particles, event.hit_to_mcp)
         track_to_particle = hit_purity(tracks, event.particles, weights)
         hit_eff = hit_efficinecy(track_to_particle, event.hit_to_mcp, event.mcp_to_hits)
         #for k,v in hit_eff.iteritems():
         #    print k[0].tid,k[1].pkey,v
-        recoeff = track_recoeff(track_to_particle, event.particles)
-        print recoeff
-        avg_recoeff += recoeff
-    print("Average reconstruction efficiency: ",avg_recoeff/len(tracking_data))
+        n_allparticles += len(event.particles)
+        n_allreco += len(reconstructed(track_to_particle))
+        n_allghsots += len(ghosts(track_to_particle))
+        avg_recoeff += track_recoeff(track_to_particle, event.particles)
+        avg_ghost_rate += ghost_rate(track_to_particle)
+        purities = [pp[0] for _, pp in track_to_particle.iteritems() if pp[1] is not None]
+        avg_purity += np.mean(purities)
+        avg_hiteff += np.mean(hit_eff.values())
+    nevents = len(tracking_data)
+    print("Average reconstruction efficiency: %6.2f%% (%d #tracks of %d reconstructible particles)"%(100*avg_recoeff/nevents, n_allreco, n_allparticles))
+    print("Average ghost rate: %6.2f%% (%d)"%(100*avg_ghost_rate/nevents, n_allghsots))
+    print("Average hit purity: %6.2f%%"%(100*avg_purity/nevents))
+    print("Average hit efficiency: %6.2f%%"%(100*avg_hiteff/nevents))
 
 
 if __name__ == "__main__":
