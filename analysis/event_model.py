@@ -31,18 +31,25 @@ class Event(object):
 class MCParticle(object):
     """Store information about a Monte-Carlo simulation particle"""
 
-    def __init__(self, pkey, pid, velohits):
+    def __init__(self, pkey, pid, p, pt, eta, phi, velohits):
         """Construct a new particle from
 
         its numeric key (arbitrary integer used in input file)
         its pID (integer providing information on the particle type)
+        its p, pt, eta and phi parameters
         its assocated velopixel hits"""
         self.pkey = pkey
         self.pid = pid
         self.velohits = velohits
+        self.p = p
+        self.pt = pt
+        self.eta = eta
+        self.phi = phi
+
 
     def __str__(self):
-        return "MCParticle %d: pid = %d"%(self.pkey, self.pid)
+        return "MCParticle %d: pid = %d, (p, pt, eta, phi) = (%g, %g, %g, %g)" %(
+                        self.pkey, self.pid, self.p, self.pt, self.eta, self.phi)
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__, self.__dict__)
@@ -168,13 +175,17 @@ def read_datfile(filename):
         no_mcp, = unpack('i', bindata[pos:pos+4])
         pos += 4
         for _ in range(no_mcp):
-            mcpkey, mcpid, nh = unpack('iii', bindata[pos:pos+12])
-            pos += 12
+            mcpkey, mcpid = unpack('ii', bindata[pos:pos+8])
+            pos += 8
+            p, pt, eta, phi = unpack('ffff', bindata[pos:pos+16])
+            pos += 16
+            nh, = unpack('i', bindata[pos:pos+4])
+            pos += 4
             mcp_hitIDs = unpack('i'*nh, bindata[pos:pos+nh*4])
             pos += nh*4
             hdict = {h.hitID:h for h in hits}
             trackhits = [hdict[hid] for hid in mcp_hitIDs]
-            mcp_to_hits[MCParticle(mcpkey, mcpid, trackhits)] = trackhits
+            mcp_to_hits[MCParticle(mcpkey, mcpid, p, pt, eta, phi, trackhits)] = trackhits
             #mcp_to_hits[mcpid] = mcp_hitIDs
     if pos < dataLen + header_sz:
         # if there is even more data, return access to the caller
