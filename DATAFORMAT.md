@@ -66,6 +66,10 @@ This is followed by `no_mcp` structures. One for each MC particle:
 |---------|----------|---------|
 | mcp_key | uint32_t | 1       |
 | mcp_id  | uint32_t | 1       |
+| mcp_p   | float    | 1       |
+| mcp_pt  | float    | 1       |
+| mcp_eta | float    | 1       |
+| mcp_phi | float    | 1       |
 | no_hits | uint32_t | 1       |
 | hitIDs  | uint32_t | no_hits |
 
