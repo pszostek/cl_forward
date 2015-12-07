@@ -13,7 +13,7 @@ using CandidatesMap = std::unordered_map<int, std::pair<int, int>>;
 class Event {
 private:
     std::pair<float, float> findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
-    std::tuple<int, int, float> findBestFit(const Hit& h0, std::vector<bool>& hit_used, int* const sensor_data, int first_h1, int last_h1);
+    std::tuple<int, int, float> findBestFit(const Hit& h0, std::vector<bool>& hit_used, size_t cur_sensor, int first_h1, int last_h1);
 //private:
 public:
     int number_of_sensors;
@@ -33,12 +33,12 @@ public:
     void fillCandidates(CandidatesMap& hit_candidates,
         CandidatesMap& hit_h2_candidates);
 
-    void trackCreation(int* const sensor_data, CandidatesMap& hit_candidates, int h0_index,
+    void trackCreation(size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
         std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
 
     void trackForwarding(std::vector<bool>& hit_used,
-        int* const sensor_data,
+        size_t cur_sensor,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
         std::vector<struct Track>& tracks);

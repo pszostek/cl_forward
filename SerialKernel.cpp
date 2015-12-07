@@ -12,14 +12,14 @@
     first_h1 and last_h1 specify the iteration range, i.e. the function looks in hits[first_h1, last_h1]
     */
 
-std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>& hit_used, int* const sensor_data, int first_h1, int last_h1) {
+std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>& hit_used, const size_t cur_sensor, int first_h1, int last_h1) {
     unsigned int best_hit_h1 = 0;
     unsigned int best_hit_h2 = 0;
     float best_fit = MAX_FLOAT;
     struct Hit h1;
 
     // Calculate new dymax
-    const float s1_z = hits.Zs[sensor_data[1]];
+    const float s1_z = hits.Zs[sensor_hits.starts[cur_sensor-2]];
     const float h_dist = std::abs(s1_z - h0.z);
     const float dymax = PARAM_MAXYSLOPE * h_dist;
 
@@ -46,8 +46,8 @@ std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>&
 
         // Iterate in the third list of hits
         // Tiled memory access on h2
-        for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
-            const int h2_index = sensor_data[2] + k;
+        for(size_t h2_element=0; h2_element<sensor_hits.nums[cur_sensor-4];++h2_element) {
+            size_t h2_index = h2_element + sensor_hits.starts[cur_sensor-4];
             struct Hit h2;
             h2.x = hits.Xs[h2_index];
             h2.y = hits.Ys[h2_index];
@@ -271,7 +271,7 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
 * @param number_of_hits
 */
 void Event::trackForwarding(std::vector<bool>& hit_used,
-        int* const sensor_data,
+        const size_t cur_sensor,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
         std::vector<struct Track>& tracks) {
@@ -340,12 +340,9 @@ void Event::trackForwarding(std::vector<bool>& hit_used,
         // Only load for get_local_id(1) == 0
         float best_fit = MAX_FLOAT;
 
-        for (int k=0; k<sensor_data[SENSOR_DATA_HITNUMS + 2]; ++k) {
-            const int h2_index = sensor_data[2] + k;
-            struct Hit h2;
-            h2.x = hits.Xs[h2_index];
-            h2.y = hits.Ys[h2_index];
-            h2.z = hits.Zs[h2_index];
+        for (size_t h2_element=0; h2_element < sensor_hits.nums[cur_sensor-4]; ++h2_element) {
+            size_t h2_index = h2_element + sensor_hits.starts[cur_sensor-4];
+            struct Hit h2 = {hits.Xs[h2_index], hits.Ys[h2_index], hits.Zs[h2_index]};
 
             const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
 
@@ -443,7 +440,7 @@ void Event::trackForwarding(std::vector<bool>& hit_used,
 * @param tracks_to_follow
 */
 
-void Event::trackCreation(int* const sensor_data, CandidatesMap& hit_candidates, int h0_index,
+void Event::trackCreation(const size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
         std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
@@ -459,7 +456,7 @@ void Event::trackCreation(int* const sensor_data, CandidatesMap& hit_candidates,
     const int last_h1 = hit_candidates[h0_index].second;
 
     // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
-    std::tie(best_hit_h1, best_hit_h2, best_fit) = findBestFit(h0, hit_used, sensor_data, first_h1, last_h1);
+    std::tie(best_hit_h1, best_hit_h2, best_fit) = findBestFit(h0, hit_used, cur_sensor, first_h1, last_h1);
 
     if (best_fit < MAX_FLOAT) {
         // We have a best fit! - haven't we?
@@ -566,7 +563,6 @@ std::vector<Track> Event::serialSearchByTriplets() {
     // XXX OA: what's this for?
     // PS: Removed since never used
     // int sh_hit_process [NUMTHREADS_X];
-    int sensor_data [6];
 
     // OA: This is used for coordinating between OpenCL threads within a group.
     // Not needed anymore
@@ -601,13 +597,6 @@ std::vector<Track> Event::serialSearchByTriplets() {
         }
         */
 
-        sensor_data[0] = sensor_hits.starts[cur_sensor];  // never used in the code
-        sensor_data[1] = sensor_hits.starts[cur_sensor-2];
-        sensor_data[2] = sensor_hits.starts[cur_sensor-4];
-        sensor_data[3] = sensor_hits.nums[cur_sensor];  // never used in the code
-        sensor_data[4] = sensor_hits.nums[cur_sensor-2];  // never used in the code
-        sensor_data[5] = sensor_hits.nums[cur_sensor-4];
-
         // We need this barrier if we are not using shared memory for the hits.
         // Removing shmem for hits removes the barriers in trackForwarding.
         // Otherwise the three statements from before could be executed before / after updating
@@ -621,7 +610,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
 
         // 2a. Track forwarding
         trackForwarding(hit_used,
-            sensor_data, tracks_to_follow, weak_tracks, prev_ttf,
+            cur_sensor, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks);
 
         // Iterate in all hits for current sensor
@@ -632,11 +621,12 @@ std::vector<Track> Event::serialSearchByTriplets() {
         // in groups of max NUMTHREADS_X
 
         //DEBUG << "sensor_data[0]: " << sensor_data[0] << std::endl;
-        for(int h0_index = sensor_data[0];
-            h0_index < sensor_data[0] + sensor_data[SENSOR_DATA_HITNUMS];
-            ++h0_index) {
+        for(int h0_element = 0;
+            h0_element < sensor_hits.nums[cur_sensor];
+            ++h0_element) {
+            int h0_index = h0_element + sensor_hits.starts[cur_sensor];
             if (!hit_used[h0_index]) {
-                trackCreation(sensor_data,
+                trackCreation(cur_sensor,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
                     tracklets,
                     tracks_to_follow);
