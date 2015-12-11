@@ -41,6 +41,20 @@ struct Timing {
 #endif
 
 
+std::string get_output_filename(std::string input_filename, OutType output_type) {
+    std::size_t last_slash_idx = input_filename.find_last_of('/');
+    std::string basename = input_filename.substr(last_slash_idx+1);
+    std::string basename_wo_extension = basename.substr(0, basename.size()-4);
+    std::string output_filename;
+
+    if (output_type == OutType::Text) {
+        output_filename = std::string(RESULTS_FOLDER) + "/" + basename_wo_extension + "_serial_txt.out";
+    } else if (output_type == OutType::Binary) {
+        output_filename = std::string(RESULTS_FOLDER) + "/" + basename_wo_extension + "_serial_bin.out";
+    }
+    return output_filename;
+}
+
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
     std::vector<std::vector<uint8_t> > & output,
@@ -160,13 +174,10 @@ int cpuPixelSearchByTripletSerialRun(
             }
         }
 
-        char *c_inputfname = new char[event.filename.size()];
-        std::strcpy(c_inputfname, event.filename.c_str());
-        const char *c_inputbase = basename(c_inputfname);
-        std::string input_basename(c_inputbase);
+
         // Print to output file with event no.
         if (outtype == OutType::Text) {
-            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + input_basename.substr(0,input_basename.size() - 4) + std::string("_serial_txt.out");
+            std::string fileName = get_output_filename(event.filename, OutType::Text);
             std::ofstream outfile(fileName, std::ios::out);
             DEBUG << "writing to: " << fileName << std::endl;
             unsigned int track_idx = 0;
@@ -177,7 +188,7 @@ int cpuPixelSearchByTripletSerialRun(
             }
             outfile.close();
         } else if (outtype == OutType::Binary) {
-            std::string fileName = std::string(RESULTS_FOLDER) + std::string("/") + input_basename.substr(0,input_basename.size() - 4) + std::string("_serial_bin.out");
+            std::string fileName = get_output_filename(event.filename, OutType::Binary);
             std::ofstream outfile(fileName, std::ios::out | std::ios::binary);
             DEBUG << "writing to: " << fileName << std::endl;
             writeBinTracks(tracks, event, outfile);
