@@ -122,13 +122,13 @@ void readFileIntoVector(std::string filename, std::vector<unsigned char> & outpu
  */
 int main(int argc, char *argv[])
 {
-    std::string filename, mode_opt, out_opt;
+    std::string filename_str, mode_opt, out_opt;
 
     // PS: removed, since never used
     // int fileNumber = 1;
     std::string delimiter = ",";
     std::vector<std::vector<unsigned char> > input;
-
+    std::vector<std::string> filenames;
     // Get params (getopt independent)
     if (argc != 4){
         printUsage(argv);
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
 
     mode_opt = std::string(argv[1]);
     out_opt = std::string(argv[2]);
-    filename = std::string(argv[3]);
+    filename_str = std::string(argv[3]);
 
     OutType outtype;
     if (out_opt.compare("-bin") == 0) {
@@ -150,34 +150,37 @@ int main(int argc, char *argv[])
 
     // Check how many files were specified and
     // call the entrypoint with the suggested format
-    if(filename.empty()){
+    if(filename_str.empty()){
         std::cerr << "No filename specified" << std::endl;
         printUsage(argv);
         return -1;
     }
 
-    size_t numberOfOcurrences = std::count(filename.begin(), filename.end(), ',') + 1;
+    size_t numberOfOcurrences = std::count(filename_str.begin(), filename_str.end(), ',') + 1;
     input.resize(numberOfOcurrences);
+    filenames.resize(numberOfOcurrences);
 
-    size_t posFound = filename.find(delimiter);
+    size_t posFound = filename_str.find(delimiter);
     if (posFound != std::string::npos){
         int input_index = 0;
         size_t prevFound = 0;
         while(prevFound != std::string::npos){
+            filenames[input_index] = filename_str.substr(prevFound, posFound-prevFound);
             if (posFound == std::string::npos){
-                readFileIntoVector(filename.substr(prevFound, posFound-prevFound), input[input_index]);
+                readFileIntoVector(filenames[input_index], input[input_index]);
                 prevFound = posFound;
             }
             else {
-                readFileIntoVector(filename.substr(prevFound, posFound-prevFound), input[input_index]);
+                readFileIntoVector(filenames[input_index], input[input_index]);
                 prevFound = posFound + 1;
-                posFound = filename.find(delimiter, posFound + 1);
+                posFound = filename_str.find(delimiter, posFound + 1);
             }
             input_index++;
         }
     }
     else {
-        readFileIntoVector(filename, input[0]);
+        filenames[0] = filename_str;
+        readFileIntoVector(filename_str, input[0]);
     }
 
     // Print out first byte from formatter->inputPointer
@@ -186,9 +189,9 @@ int main(int argc, char *argv[])
     // Call offloaded algo
     std::vector<std::vector<unsigned char> > output;
     if (mode_opt.compare("-ocl") == 0) {
-        independent_execute(input, output, ExecMode::OpenCl, outtype);
+        independent_execute(input, output, filenames, ExecMode::OpenCl, outtype);
     } else if (mode_opt.compare("-serial") == 0) {
-        independent_execute(input, output, ExecMode::Serial, outtype);
+        independent_execute(input, output, filenames, ExecMode::Serial, outtype);
     } else {
         std::cout << "Execution mode " << mode_opt << " not yet supported" << std::endl;
     }

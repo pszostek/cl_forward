@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <tuple>
 #include <unordered_map>
+#include <string>
 #include "KernelDefinitions.h"
 
 using CandidatesMap = std::unordered_map<int, std::pair<int, int>>;
@@ -22,6 +23,7 @@ public:
     unsigned int *hit_IDs;
     SensorHits sensor_hits;
     Hits hits;
+    std::string filename;
 
     void set_h_pointers_from_input(uint8_t * input, size_t size);
 
@@ -46,7 +48,7 @@ public:
     static float fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2);
 //public:
-    Event(uint8_t* input, size_t size);
+    Event(uint8_t* input, size_t size, std::string &fname);
     virtual ~Event();
 
 
