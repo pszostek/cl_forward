@@ -124,6 +124,24 @@ void checkClError(const cl_int errcode_ret) {
 }
 
 
+std::map<int, int> map_z_coordinate_to_sensors(const Event& event) {
+    std::map<int, int> zhit_to_module;
+    for(int j=0; j<event.number_of_sensors; ++j){
+        const int z = event.sensor_Zs[j];
+        zhit_to_module[z] = j;
+    }
+  // some hits z may not correspond to a sensor's,
+  // but be close enough
+    for(int j=0; j<event.number_of_hits; ++j){
+        const int z = (int) event.hits.Zs[j];
+        if (zhit_to_module.find(z) == zhit_to_module.end()){
+            const int sensor = findClosestModule(z, zhit_to_module);
+            zhit_to_module[z] = sensor;
+        }
+    }
+    return zhit_to_module;
+}
+
 /**
  * Prints tracks
  * Track #n, length <length>:
@@ -132,34 +150,33 @@ void checkClError(const cl_int errcode_ret) {
  * @param tracks
  * @param trackNumber
  */
- void printTrack(const Track& track,
-  const std::map<int, int>& zhit_to_module, const Event& event, std::ofstream& outstream){
+void printTrack(const Track& track, const Event& event, std::ofstream& outstream){
+    std::map<int, int> zhit_to_module = map_z_coordinate_to_sensors(event);
 
-  for(unsigned int hit_idx = 0; hit_idx < track.hitsNum; ++hit_idx){
-    const int hitNumber = track.hits[hit_idx];
-    const unsigned int id = event.hit_IDs[hitNumber];
-    const float x = event.hits.Xs[hitNumber];
-    const float y = event.hits.Ys[hitNumber];
-    const float z = event.hits.Zs[hitNumber];
-    const int module = zhit_to_module.at((int) z);
+    for(unsigned int hit_idx = 0; hit_idx < track.hitsNum; ++hit_idx){
+        const int hitNumber = track.hits[hit_idx];
+        const unsigned int id = event.hit_IDs[hitNumber];
+        const float x = event.hits.Xs[hitNumber];
+        const float y = event.hits.Ys[hitNumber];
+        const float z = event.hits.Zs[hitNumber];
+        const int module = zhit_to_module.at((int) z);
 
-    outstream << " " << std::setw(8) << id << " (" << hitNumber << ")"
-      << " module " << std::setw(2) << module
-      << ", x " << std::setw(6) << x
-      << ", y " << std::setw(6) << y
-      << ", z " << std::setw(6) << z << std::endl;
-  }
+        outstream << " " << std::setw(8) << id << " (" << hitNumber << ")"
+        << " module " << std::setw(2) << module
+        << ", x " << std::setw(6) << x
+        << ", y " << std::setw(6) << y
+        << ", z " << std::setw(6) << z << std::endl;
+    }
     outstream << std::endl;
 }
 
 void writeTextTracks(const std::vector<Track>& tracks,
-    const Event& event, std::ofstream& os,
-    const std::map<int, int>& zhit_to_module) {
+    const Event& event, std::ofstream& os) {
 
     size_t track_idx = 0;
     for(auto track: tracks) {
         os << "Track #" << track_idx << ", length " << (int) track.hitsNum << std::endl;
-        printTrack(track, zhit_to_module, event, os);
+        printTrack(track, event, os);
         ++track_idx;
     }
 }

@@ -138,6 +138,12 @@ int cpuPixelSearchByTripletSerialRun(
     DEBUG << "executing cpuPixelSearchByTriplet with " << input.size() << " events" << std::endl;
     output.resize(input.size());
 
+    std::vector<std::vector<Track>> event_tracks;
+    std::vector<Event> events;
+
+    event_tracks.reserve(input.size());
+    events.reserve(input.size());
+    
     for (unsigned int input_index = 0; input_index < input.size(); ++input_index) {
         DEBUG << "Processing data frame " << input_index << std::endl;
 
@@ -146,42 +152,29 @@ int cpuPixelSearchByTripletSerialRun(
 #ifdef TIMING_ENABLED
         timing.start();
 #endif
-        auto tracks = event.serialSearchByTriplets();
+        std::vector<Track> tracks = event.serialSearchByTriplets();
 #ifdef  TIMING_ENABLED
         timing.stop();
 #endif
         DEBUG << "Done. Found " << tracks.size() <<" tracks." << std::endl;
-
-      // Calculate z to sensor map
-        std::map<int, int> zhit_to_module;
-        // TODO: Why this guy was called another time here?
-        // setHPointersFromInput((uint8_t*) &(*(input[input_index]))[0], input[input_index]->size(),
-        //     number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
-        //     hit_IDs, hits);
-
-        // map to convert from z of hit to module
-        for(int j=0; j<event.number_of_sensors; ++j){
-            const int z = event.sensor_Zs[j];
-            zhit_to_module[z] = j;
-        }
-      // Some hits z may not correspond to a sensor's,
-      // but be close enough
-        for(int j=0; j<event.number_of_hits; ++j){
-            const int z = (int) event.hits.Zs[j];
-            if (zhit_to_module.find(z) == zhit_to_module.end()){
-                const int sensor = findClosestModule(z, zhit_to_module);
-                zhit_to_module[z] = sensor;
-            }
-        }
-
-
+        events.push_back(std::move(event));
+        event_tracks.push_back(std::move(tracks));
+    }
+#ifdef TIMING_ENABLED
+    #include <iostream>
+    std::cout << "%%% TIME: " << timing.cycles << " cycles." << std::endl;
+#endif
+    for(size_t output_idx=0; output_idx<event_tracks.size(); ++output_idx) { 
         // Print to output file with event no.
+        const Event event = events.at(output_idx);
+        const std::vector<Track> tracks = event_tracks.at(output_idx);
+
         if (outtype == OutType::Text) {
             std::string fileName = get_output_filename(event.filename, OutType::Text);
             std::ofstream outfile(fileName, std::ios::out);
             DEBUG << "writing to: " << fileName << std::endl;
             unsigned int track_idx = 0;
-            writeTextTracks(tracks, event, outfile, zhit_to_module);
+            writeTextTracks(tracks, event, outfile);
 
             outfile.close();
         } else if (outtype == OutType::Binary) {
@@ -192,10 +185,6 @@ int cpuPixelSearchByTripletSerialRun(
             outfile.close();
         }
     }
-#ifdef TIMING_ENABLED
-    #include <iostream>
-    std::cout << "%%% TIME: " << timing.cycles << " cycles." << std::endl;
-#endif
 
     return 0;
 }

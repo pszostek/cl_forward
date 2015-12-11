@@ -60,10 +60,9 @@ void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input);
 void quicksort (float* a, float* b, float* c, unsigned int* d, int start, int end);
 int divide (float* a, float* b, float* c, unsigned int* d, int first, int last);
 template<typename T> void swap (T& a, T& b);
-void printTrack(const Track& track, const std::map<int, int>& zhit_to_module, const Event& event, std::ofstream& outstream);
+void printTrack(const Track& track, const Event& event, std::ofstream& outstream);
 void writeTextTracks(const std::vector<Track>& tracks,
-    const Event& event, std::ofstream& os,
-    const std::map<int, int>& zhit_to_module);
+    const Event& event, std::ofstream& os);
 void writeBinTracks(const std::vector<Track>& tracks, const Event& event, std::ofstream& os);
 int findClosestModule(const int z, const std::map<int, int>& zhit_to_module);
 std::map<std::string, float> calcResults(std::vector<float>& times);
