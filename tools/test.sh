@@ -3,16 +3,16 @@
 READER="python analysis/trackreader.py"
 
 function tracks_in_reference() {
-    echo $($READER results_serial/$1.out --tracks)
+    echo $($READER results_serial/$1.out results_serial/$1.out --tracks)
 }
 
 function current_tracks() {
     ./clpixel -serial -tex mcdata/$1.dat >/dev/null
-    echo $($READER results/0_serial_txt.out --tracks)
+    echo $($READER results/$1_serial_txt.out results/$1_serial_txt.out --tracks)
 }
 
 function match() {
-   $READER results/0_serial_txt.out results_serial/$1.out --test-equal > /dev/null
+   $READER results/$1_serial_txt.out results_serial/$1.out --test-equal > /dev/null
 }
 
 
