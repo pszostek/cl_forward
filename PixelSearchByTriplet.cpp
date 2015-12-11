@@ -181,11 +181,8 @@ int cpuPixelSearchByTripletSerialRun(
             std::ofstream outfile(fileName, std::ios::out);
             DEBUG << "writing to: " << fileName << std::endl;
             unsigned int track_idx = 0;
-            for(auto track: tracks) {
-                outfile << "Track #" << track_idx << ", length " << (int) track.hitsNum << std::endl;
-                printTrack(track, zhit_to_module, event, outfile);
-                ++track_idx;
-            }
+            writeTextTracks(tracks, event, outfile, zhit_to_module);
+
             outfile.close();
         } else if (outtype == OutType::Binary) {
             std::string fileName = get_output_filename(event.filename, OutType::Binary);

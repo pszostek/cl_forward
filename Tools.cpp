@@ -152,6 +152,19 @@ void checkClError(const cl_int errcode_ret) {
     outstream << std::endl;
 }
 
+void writeTextTracks(const std::vector<Track>& tracks,
+    const Event& event, std::ofstream& os,
+    const std::map<int, int>& zhit_to_module) {
+
+    size_t track_idx = 0;
+    for(auto track: tracks) {
+        os << "Track #" << track_idx << ", length " << (int) track.hitsNum << std::endl;
+        printTrack(track, zhit_to_module, event, os);
+        ++track_idx;
+    }
+}
+
+
 /**
  * Write tracks in binary format.
  * We write both the event information as well as the tracks themselves. This will make
