@@ -7,7 +7,7 @@ function tracks_in_reference() {
 }
 
 function current_tracks() {
-    ./clpixel -serial -tex mcdata/$1.dat >/dev/null
+    bin/x86_64/Release/clpixel -serial -tex mcdata/$1.dat >/dev/null
     echo $($READER results/$1_serial_txt.out results/$1_serial_txt.out --tracks)
 }
 

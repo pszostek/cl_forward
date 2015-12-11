@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-CC=g++ make -f ps_makefile clean && 
-CC=g++ make -f ps_makefile &&
+CC=g++ make -f Makefile clean && 
+CC=g++ make -f Makefile &&
 ./tools/test.sh
