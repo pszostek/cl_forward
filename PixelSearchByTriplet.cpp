@@ -8,6 +8,38 @@
 // extern int*   h_sensor_Zs;
 // extern unsigned int* h_hit_IDs;
 
+#ifdef TIMING_ENABLED
+#include <cstdint>
+struct Timing {
+    uint32_t cycles_low, cycles_high;
+    uint64_t cycles;
+
+    Timing() : cycles(0) {}
+
+    void start() {
+        asm volatile (
+        "CPUID\n\t"/*serialize*/
+        "RDTSC\n\t"/*read the clock*/
+        "mov %%edx, %0\n\t"
+        "mov %%eax, %1\n\t"
+        : "=r" (cycles_high), "=r" (cycles_low)
+        :: "%rax", "%rbx", "%rcx", "%rdx");
+    }
+    void stop() {
+        uint32_t cycles_high1, cycles_low1;
+        asm volatile (
+            "RDTSCP\n\t"/*read the clock*/
+            "mov %%edx, %0\n\t"
+            "mov %%eax, %1\n\t"
+            "CPUID\n\t"
+            : "=r" (cycles_high1), "=r" (cycles_low1)
+            :: "%rax", "%rbx", "%rcx", "%rdx");
+        cycles += ((uint64_t(cycles_high1) << 32) + uint64_t(cycles_low1))
+            - ((uint64_t(cycles_high) << 32) + uint64_t(cycles_low));
+    }
+} timing;
+#endif
+
 
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
@@ -97,7 +129,13 @@ int cpuPixelSearchByTripletSerialRun(
 
         const std::vector<uint8_t>* event_input = input[input_index];
         Event event((uint8_t*) &(*event_input)[0], event_input->size(), filenames[input_index]);
+#ifdef TIMING_ENABLED
+        timing.start();
+#endif
         auto tracks = event.serialSearchByTriplets();
+#ifdef  TIMING_ENABLED
+        timing.stop();
+#endif
         DEBUG << "Done. Found " << tracks.size() <<" tracks." << std::endl;
 
       // Calculate z to sensor map
@@ -146,6 +184,10 @@ int cpuPixelSearchByTripletSerialRun(
             outfile.close();
         }
     }
+#ifdef TIMING_ENABLED
+    #include <iostream>
+    std::cout << "%%% TIME: " << timing.cycles << " cycles." << std::endl;
+#endif
 
     return 0;
 }

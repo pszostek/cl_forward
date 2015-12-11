@@ -38,6 +38,8 @@
 #define PRINT_VERBOSE true
 #define ASSERTS_ENABLED false
 
+#define TIMING_ENABLED
+
 #if ASSERTS_ENABLED == true
 #include <cassert>
 #define ASSERT(EXPR) assert(EXPR);
