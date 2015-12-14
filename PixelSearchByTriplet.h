@@ -8,7 +8,6 @@
 #include "Logger.h"
 
 #include <stdint.h>
-#include <libgen.h>
 
 enum class ExecMode {Serial, TBB, OpenCl};
 
