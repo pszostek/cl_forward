@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
     }
 
     mode_opt = std::string(argv[1]);
+    std::transform(mode_opt.begin(), mode_opt.end(), mode_opt.begin(), ::tolower);
     out_opt = std::string(argv[2]);
     filename_str = std::string(argv[3]);
 
