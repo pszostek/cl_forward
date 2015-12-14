@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-READER="python analysis/trackreader.py"
+READER="python EventAnalyzer/trackreader.py"
 
 function tracks_in_reference() {
     echo $($READER results_serial/$1.out results_serial/$1.out --tracks)
