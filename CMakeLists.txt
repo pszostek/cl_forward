@@ -17,6 +17,7 @@
 set( PROJECT_NAME clpixel )
 option(BUILD_OPENCL "BUILD_OPENCL" OFF)
 option(VECREPORT "VECREPORT" OFF)
+option(BUILD_VERBOSE "BUILD_VERBOSE" ON)
 
 if( BUILD_OPENCL )
   set( SOURCE_FILES Event.cpp Tools.cpp Logger.cpp GpuKernelInvoker.cpp
@@ -112,6 +113,11 @@ if( BUILD_OPENCL )
   add_definitions(-DWITH_OPENCL)
 endif()
 
+if( BUILD_VERBOSE )
+  add_definitions(-DVERBOSE)
+endif()
+
+
 ############################################################################
 # Tweaks for cygwin makefile to work with windows-style path
 
@@ -156,9 +162,6 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
   # Note: "rt" is not present on mingw
   if( UNIX )
-    if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
-      set( COMPILER_FLAGS " -g -Wall" )
-    endif( )
     if (NOT APPLE)
       set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} "rt" )
     endif( )

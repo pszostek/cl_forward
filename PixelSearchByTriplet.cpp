@@ -69,7 +69,6 @@ int independent_execute(
   }
 
   std::cout << std::fixed << std::setprecision(2);
-  logger::ll.verbosityLevel = 3;
 
   // Order input hits by X
   preorder_by_x(converted_input);
@@ -147,7 +146,7 @@ int cpuPixelSearchByTripletSerialRun(
 
     event_tracks.reserve(input.size());
     events.reserve(input.size());
-    
+
     for (unsigned int input_index = 0; input_index < input.size(); ++input_index) {
         DEBUG << "Processing data frame " << input_index << std::endl;
 
@@ -166,7 +165,7 @@ int cpuPixelSearchByTripletSerialRun(
     }
 #ifdef TIMING_ENABLED
     #include <iostream>
-    std::cout << "%%% TIME: " << timing.cycles << " cycles." << std::endl;
+     INFO << "%%% TIME: " << timing.cycles << " cycles." << std::endl;
 #endif
     for(size_t output_idx=0; output_idx<event_tracks.size(); ++output_idx) { 
         // Print to output file with event no.

@@ -129,6 +129,13 @@ int main(int argc, char *argv[])
     std::string delimiter = ",";
     std::vector<std::vector<unsigned char> > input;
     std::vector<std::string> filenames;
+
+#ifdef VERBOSE
+  logger::ll.verbosityLevel = 3;
+#else
+  logger::ll.verbosityLevel = 2;
+#endif
+
     // Get params (getopt independent)
     if (argc != 4){
         printUsage(argv);
