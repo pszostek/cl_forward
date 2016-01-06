@@ -465,8 +465,6 @@ void Event::trackCreation(const size_t cur_sensor, CandidatesMap& hit_candidates
         // Add the track to the bag of tracks
         // TODO: fix this in a clean way
         Track new_tracklet = {3, {static_cast<unsigned int>(h0_index), best_hit_h1, best_hit_h2}};
-        if (h0_index == 249)
-            DEBUG << h0_index << " " << best_hit_h1 << " " << best_hit_h2 << std::endl;
         tracklets.push_back(new_tracklet);
         unsigned int new_tracklet_idx = tracklets.size()-1;
 
