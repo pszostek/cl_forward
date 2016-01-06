@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
     } else if (out_opt.compare("-tex") == 0) {
         outtype = OutType::Text;
     } else {
-        std::cout << "Output type " << out_opt << " not known." << std::endl;
+        std::cerr << "Output type " << out_opt << " not known." << std::endl;
     }
 
     // Check how many files were specified and
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
     }
 
     // Print out first byte from formatter->inputPointer
-    std::cout << input.size() << " files read" << std::endl;
+    DEBUG << input.size() << " files read" << std::endl;
 
     // Call offloaded algo
     std::vector<std::vector<unsigned char> > output;
