@@ -46,7 +46,7 @@ if( NOT BITNESS )
 endif()
 
 # Select bitness for non-msvc platform. Can be specified as -DBITNESS=32/64 at command-line
-if( NOT MSVC )
+if( NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" )
   set(BITNESS ${BITNESS} CACHE STRING "Specify bitness")
   set_property(CACHE BITNESS PROPERTY STRINGS "64" "32")
 endif()
@@ -151,7 +151,7 @@ endif()
 
 
 # gcc/g++ specific compile options
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   set( COMPILER_FLAGS "${COMPILER_FLAGS} -msse2 " )
 
   # Note: "rt" is not present on mingw
@@ -178,16 +178,22 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 
   set( LINKER_FLAGS "${LINKER_FLAGS} ${EXTRA_LINKER_FLAGS_GXX} " )
   set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} ${EXTRA_LIBRARIES_GXX} )
-elseif( MSVC )
+# MSVC specific compile options
+elseif( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" )
   # Samples can specify additional libs/flags using EXTRA* defines
   add_definitions( "/W3 /D_CRT_SECURE_NO_WARNINGS /wd4005 /wd4996 /nologo" )
 
   set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_MSVC} " )
   set( LINKER_FLAGS "${LINKER_FLAGS} ${EXTRA_LINKER_FLAGS_MSVC}  /SAFESEH:NO ")
   set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} ${EXTRA_LIBRARIES_MSVC} )
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+  if( VECREPORT )
+    set( COMPILER_FLAGS "${COMPILER_FLAGS} -qopt-report-phase=vec -qopt-report=2" )
+  endif( )
+
 endif( )
 
-set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_GXX} -std=c++11 " )
+set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_GXX} -O3 -std=c++11 " )
 if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
   set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_GXX} -g -Wall" )
 endif( )
@@ -202,7 +208,7 @@ else()
   target_link_libraries( ${PROJECT_NAME} ${ADDITIONAL_LIBRARIES} )
 endif()
 # Set output directory to bin
-if( MSVC )
+if( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" )
   set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin/${BITNESS_SUFFIX})
 else()
   set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin/${BITNESS_SUFFIX}/${CMAKE_BUILD_TYPE})
