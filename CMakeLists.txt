@@ -16,6 +16,7 @@
 
 set( PROJECT_NAME clpixel )
 option(BUILD_OPENCL "BUILD_OPENCL" OFF)
+option(VECREPORT "VECREPORT" OFF)
 
 if( BUILD_OPENCL )
   set( SOURCE_FILES Event.cpp Tools.cpp Logger.cpp GpuKernelInvoker.cpp
@@ -161,6 +162,10 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     if (NOT APPLE)
       set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} "rt" )
     endif( )
+  endif( )
+
+  if( VECREPORT )
+    set( COMPILER_FLAGS "${COMPILER_FLAGS} -fopt-info-vec -fopt-info-vec-missed -ftree-vectorizer-verbose=7" )
   endif( )
 
   if( BITNESS EQUAL 32 )
