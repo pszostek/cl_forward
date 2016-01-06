@@ -115,6 +115,7 @@ std::map<std::string, float> calcResults(std::vector<float>& times){
     return results;
 }
 
+#ifdef WITH_OPENCL
 void checkClError(const cl_int errcode_ret) {
   // CHECK_OPENCL_ERROR(errcode_ret, "Error ");
   if (errcode_ret != CL_SUCCESS) {
@@ -122,6 +123,7 @@ void checkClError(const cl_int errcode_ret) {
     exit(-1);
   }
 }
+#endif
 
 
 std::map<int, int> map_z_coordinate_to_sensors(const Event& event) {

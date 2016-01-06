@@ -74,10 +74,12 @@ int independent_execute(
   // Order input hits by X
   preorder_by_x(converted_input);
 
-  if (mode == ExecMode::OpenCl) {
-      return gpuPixelSearchByTripletInvocation(converted_input, output);
-  } else if (mode == ExecMode::Serial){
+  if (mode == ExecMode::Serial){
       return cpuPixelSearchByTripletSerialRun(converted_input, output, filenames, outtype);
+#ifdef WITH_OPENCL
+  } else if (mode == ExecMode::OpenCl) {
+      return gpuPixelSearchByTripletInvocation(converted_input, output);
+#endif
   } else {
       DEBUG << "not yet implemented";
       return 0;
@@ -89,6 +91,7 @@ void independent_post_execute(const std::vector<std::vector<uint8_t> > & output)
     DEBUG << std::endl << "Size of output: " << output.size() << " entries" << std::endl;
 }
 
+#ifdef WITH_OPENCL
 int gpuPixelSearchByTriplet(
     const std::vector<const std::vector<uint8_t>* > & input,
     std::vector<std::vector<uint8_t> > & output) {
@@ -126,6 +129,7 @@ int gpuPixelSearchByTripletInvocation(
 
   return 0;
 }
+#endif
 
 /**
   * Common entrypoint for Gaudi and non-Gaudi

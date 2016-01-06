@@ -15,10 +15,12 @@
 #include <stdint.h>
 #include <stdexcept>
 
+#ifdef WITH_OPENCL
 #ifdef __APPLE__
     #include "OpenCL/opencl.h"
 #else
     #include <CL/cl.h>
+#endif
 #endif
 
 #include <string.h>
@@ -30,6 +32,7 @@
 #include "Event.h"
 #include "Definitions.h"
 
+#ifdef WITH_OPENCL
 #define clCheck(stmt) { \
   cl_int status = stmt; \
   if (status != CL_SUCCESS) { \
@@ -38,6 +41,7 @@
     exit(-1); \
   } \
 }
+#endif
 
 template <class T>
 std::string toString(T t){
@@ -66,8 +70,10 @@ void writeTextTracks(const std::vector<Track>& tracks,
 void writeBinTracks(const std::vector<Track>& tracks, const Event& event, std::ofstream& os);
 int findClosestModule(const int z, const std::map<int, int>& zhit_to_module);
 std::map<std::string, float> calcResults(std::vector<float>& times);
-void checkClError (const cl_int errcode_ret);
 
+#ifdef WITH_OPENCL
+void checkClError (const cl_int errcode_ret);
+#endif
 
 
 

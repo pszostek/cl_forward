@@ -14,16 +14,22 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #################################################################################
 
-set( SAMPLE_NAME clpixel )
-set( SOURCE_FILES Event.cpp Tools.cpp Logger.cpp GpuKernelInvoker.cpp
-  PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp)
-set( EXTRA_FILES Kernel.cl KernelDefinitions.h )
+set( PROJECT_NAME clpixel )
+option(BUILD_OPENCL "BUILD_OPENCL" OFF)
 
+if( BUILD_OPENCL )
+  set( SOURCE_FILES Event.cpp Tools.cpp Logger.cpp GpuKernelInvoker.cpp
+    PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp)
+  set( EXTRA_FILES Kernel.cl KernelDefinitions.h )
+else()
+  set( SOURCE_FILES Event.cpp Tools.cpp Logger.cpp
+    PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp)
+endif()
 ############################################################################
 
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 cmake_minimum_required( VERSION 2.8.0 )
-project( ${SAMPLE_NAME} )
+project( ${PROJECT_NAME} )
 
 if(CMAKE_BUILD_TYPE MATCHES "[Tt][Bb][Bb]")
   return( )
@@ -68,48 +74,53 @@ endif()
 
 ############################################################################
 # Find OpenCL include and libs
-if("${ACCELERATOR}" STREQUAL NVIDIA)
-  find_path( OPENCL_INCLUDE_DIRS
-    NAMES OpenCL/cl.h CL/cl.h
-    HINTS ../../../../include/ $ENV{NVIDIA_INSTALL_PATH}/include/
-    $ENV{NVIDIA_INSTALL_PATH}/include/
-    )
-else()
-  find_path( OPENCL_INCLUDE_DIRS
-    NAMES OpenCL/cl.h CL/cl.h
-    HINTS ../../../../include/ $ENV{AMDAPPSDKROOT}/include/
-    $ENV{NVIDIA_INSTALL_PATH}/include/
-    )
-endif()
-mark_as_advanced(OPENCL_INCLUDE_DIRS)
+if( BUILD_OPENCL )
+  if("${ACCELERATOR}" STREQUAL NVIDIA)
+    find_path( OPENCL_INCLUDE_DIRS
+      NAMES OpenCL/cl.h CL/cl.h
+      HINTS ../../../../include/ $ENV{NVIDIA_INSTALL_PATH}/include/
+      $ENV{NVIDIA_INSTALL_PATH}/include/
+      )
+  else()
+    find_path( OPENCL_INCLUDE_DIRS
+      NAMES OpenCL/cl.h CL/cl.h
+      HINTS ../../../../include/ $ENV{AMDAPPSDKROOT}/include/
+      $ENV{NVIDIA_INSTALL_PATH}/include/
+      )
+  endif()
+  mark_as_advanced(OPENCL_INCLUDE_DIRS)
 
-if("${ACCELERATOR}" STREQUAL NVIDIA)
-  find_library( OPENCL_LIBRARIES
-    NAMES OpenCL
-    HINTS ../../../../lib/ $ENV{NVIDIA_INSTALL_PATH}/lib64/
-    PATH_SUFFIXES ${PLATFORM}${BITNESS} ${BITNESS_SUFFIX}
-    )
-else()
-  find_library( OPENCL_LIBRARIES
-    NAMES OpenCL
-    HINTS ../../../../lib/ $ENV{AMDAPPSDKROOT}/lib
-    PATH_SUFFIXES ${PLATFORM}${BITNESS} ${BITNESS_SUFFIX}
-    )
-endif()
-mark_as_advanced( OPENCL_LIBRARIES )
+  if("${ACCELERATOR}" STREQUAL NVIDIA)
+    find_library( OPENCL_LIBRARIES
+      NAMES OpenCL
+      HINTS ../../../../lib/ $ENV{NVIDIA_INSTALL_PATH}/lib64/
+      PATH_SUFFIXES ${PLATFORM}${BITNESS} ${BITNESS_SUFFIX}
+      )
+  else()
+    find_library( OPENCL_LIBRARIES
+      NAMES OpenCL
+      HINTS ../../../../lib/ $ENV{AMDAPPSDKROOT}/lib
+      PATH_SUFFIXES ${PLATFORM}${BITNESS} ${BITNESS_SUFFIX}
+      )
+  endif()
+  mark_as_advanced( OPENCL_LIBRARIES )
 
-if( OPENCL_INCLUDE_DIRS STREQUAL "" OR OPENCL_LIBRARIES STREQUAL "")
-  message( FATAL_ERROR "Could not locate OpenCL include & libs" )
-endif( )
+  if( OPENCL_INCLUDE_DIRS STREQUAL "" OR OPENCL_LIBRARIES STREQUAL "")
+    message( FATAL_ERROR "Could not locate OpenCL include & libs" )
+  endif( )
+  add_definitions(-DWITH_OPENCL)
+endif()
 
 ############################################################################
 # Tweaks for cygwin makefile to work with windows-style path
 
 if( CYGWIN )
-  set( PATHS_TO_CONVERT
-    OPENCL_INCLUDE_DIRS
-    OPENCL_LIBRARIES
-    )
+  if( BUILD_OPENCL )
+    set( PATHS_TO_CONVERT
+      OPENCL_INCLUDE_DIRS
+      OPENCL_LIBRARIES
+      )
+  endif()
 
   foreach( pathVar ${PATHS_TO_CONVERT} )
     # Convert windows paths to cyg linux absolute path
@@ -126,13 +137,17 @@ set( LINKER_FLAGS " " )
 set( ADDITIONAL_LIBRARIES "" )
 
 file(GLOB INCLUDE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.h" )
-if("${ACCELERATOR}" STREQUAL NVIDIA)
-  include_directories( ${OPENCL_INCLUDE_DIRS} ../../../../include/SDKUtil $ENV{NVIDIA_INSTALL_PATH}/include )
+if( BUILD_OPENCL )
+  if("${ACCELERATOR}" STREQUAL NVIDIA)
+    include_directories( ${OPENCL_INCLUDE_DIRS} ../../../../include/SDKUtil $ENV{NVIDIA_INSTALL_PATH}/include )
+  else()
+    include_directories( ${OPENCL_INCLUDE_DIRS} ../../../../include/SDKUtil $ENV{AMDAPPSDKROOT}/include/SDKUtil )
+  endif()
+  add_executable( ${PROJECT_NAME} ${SOURCE_FILES} ${INCLUDE_FILES} ${EXTRA_FILES})
 else()
-  include_directories( ${OPENCL_INCLUDE_DIRS} ../../../../include/SDKUtil $ENV{AMDAPPSDKROOT}/include/SDKUtil )
+  add_executable( ${PROJECT_NAME} ${SOURCE_FILES} ${INCLUDE_FILES})
 endif()
 
-add_executable( ${SAMPLE_NAME} ${SOURCE_FILES} ${INCLUDE_FILES} ${EXTRA_FILES})
 
 # gcc/g++ specific compile options
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
@@ -172,12 +187,15 @@ if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
   set( COMPILER_FLAGS "${COMPILER_FLAGS} ${EXTRA_COMPILER_FLAGS_GXX} -g -Wall" )
 endif( )
 
-set_target_properties( ${SAMPLE_NAME} PROPERTIES
+set_target_properties( ${PROJECT_NAME} PROPERTIES
   COMPILE_FLAGS ${COMPILER_FLAGS}
   LINK_FLAGS ${LINKER_FLAGS}
   )
-target_link_libraries( ${SAMPLE_NAME} ${OPENCL_LIBRARIES} ${ADDITIONAL_LIBRARIES} )
-
+if( BUILD_OPENCL )
+  target_link_libraries( ${PROJECT_NAME} ${OPENCL_LIBRARIES} ${ADDITIONAL_LIBRARIES} )
+else()
+  target_link_libraries( ${PROJECT_NAME} ${ADDITIONAL_LIBRARIES} )
+endif()
 # Set output directory to bin
 if( MSVC )
   set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bin/${BITNESS_SUFFIX})
@@ -186,17 +204,18 @@ else()
 endif()
 
 # Copy extra files to binary directory
-foreach( extra_file ${EXTRA_FILES} )
-  add_custom_command(
-    TARGET ${SAMPLE_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_CURRENT_SOURCE_DIR}/${extra_file}  ${EXECUTABLE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_CURRENT_SOURCE_DIR}/${extra_file}  ./
-    )
-endforeach( extra_file )
-
+if( BUILD_OPENCL)
+  foreach( extra_file ${EXTRA_FILES} )
+    add_custom_command(
+      TARGET ${PROJECT_NAME} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${CMAKE_CURRENT_SOURCE_DIR}/${extra_file}  ${EXECUTABLE_OUTPUT_PATH}/${CMAKE_CFG_INTDIR}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      ${CMAKE_CURRENT_SOURCE_DIR}/${extra_file}  ./
+      )
+  endforeach( extra_file )
+endif()
 # Group sample based on FOLDER_GROUP defined in parent folder
 if( FOLDER_GROUP )
-  set_target_properties(${SAMPLE_NAME} PROPERTIES FOLDER ${FOLDER_GROUP})
+  set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER ${FOLDER_GROUP})
 endif( )

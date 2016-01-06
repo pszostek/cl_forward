@@ -189,10 +189,14 @@ int main(int argc, char *argv[])
 
     // Call offloaded algo
     std::vector<std::vector<unsigned char> > output;
-    if (mode_opt.compare("-ocl") == 0) {
-        independent_execute(input, output, filenames, ExecMode::OpenCl, outtype);
-    } else if (mode_opt.compare("-serial") == 0) {
+    if (mode_opt.compare("-serial") == 0) {
         independent_execute(input, output, filenames, ExecMode::Serial, outtype);
+    } else if (mode_opt.compare("-ocl") == 0) {
+#ifdef WITH_OPENCL
+        independent_execute(input, output, filenames, ExecMode::OpenCl, outtype);
+#else
+        std::cout << "Please recompile with -DBUILD_OPENCL=ON" << std::endl;
+#endif
     } else {
         std::cout << "Execution mode " << mode_opt << " not yet supported" << std::endl;
     }
