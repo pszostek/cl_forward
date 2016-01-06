@@ -32,6 +32,7 @@
 #define PARAM_TOLERANCE_CANDIDATES 0.6f
 
 #define MAX_SCATTER 0.000016f
+#define SENSOR_DATA_HITNUMS 3
 #define RESULTS_FOLDER "results"
 
 #define PRINT_SOLUTION true
@@ -57,8 +58,6 @@ struct SensorHits {
     int* nums;
 };
 
-using SensorHits = struct SensorHits;
-
 struct Hit {
     float x;
     float y;
@@ -70,8 +69,6 @@ struct Hits {
     float* Ys;
     float* Zs;
 };
-
-using Hits = struct Hits;
 
 struct Track { // 4 + 24 * 4 = 100 B
     unsigned int hitsNum;
