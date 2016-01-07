@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
 READER="python EventAnalyzer/trackreader.py"
+REFERENCE_SOURCE=results_serial
+if [ "x$1" == 'x-i' ]; then # for icc
+    REFERENCE_SOURCE=results_serial_icc
+fi
 
 function tracks_in_reference() {
-    echo $($READER results_serial/$1.out results_serial/$1.out --tracks)
+    echo $($READER $REFERENCE_SOURCE/$1_serial_txt.out $REFERENCE_SOURCE/$1_serial_txt.out --tracks)
 }
 
 function current_tracks() {
@@ -12,11 +16,12 @@ function current_tracks() {
 }
 
 function match() {
-   $READER results/$1_serial_txt.out results_serial/$1.out --test-equal > /dev/null
+   $READER results/$1_serial_txt.out $REFERENCE_SOURCE/$1_serial_txt.out --test-equal > /dev/null
 }
 
 
 set $(seq 0 50) 77
+equal="true"
 
 echo   "--------+------+------+-------+"
 printf "  Input | Act. | Ref. | Match |\n"
@@ -27,28 +32,21 @@ while [ "$#" -gt 0 ]; do
     match $1
     if [ $? -eq 0 ]; then
         match_str='\e[32mY\e[39m'
-        equal=true
     else
         match_str='\e[31mN\e[39m'
-        equal=false
+        equal="false"
     fi
     printf "%3d.dat | %4d | %4d |" $1 $cur_tracks $reference_tracks
     echo -e "   $match_str   |"
-    if [ $cur_tracks -ne $reference_tracks ]; then
-        echo   "--------+------+------+-------+"
-        echo -e "\e[31mTracks differ for the $1.dat dataset\e[39m"
-        echo "Reference result: $reference_tracks"
-        echo "Current result:   $cur_tracks"
-        exit 1
-    elif [ $equal == false ]; then
-        echo "\e[31mTracks differ.\e[39m"
-        exit 1
-    fi
-
     shift
 done
 
 echo   "--------+------+------+-------+"
-echo -e "\e[32mCurrent and reference results match.\e[39m"
+if [ $equal == "true" ]; then
+    echo -e "\e[32mCurrent and reference results match.\e[39m"
+else
+    echo -e "\e[31mCurrent and reference results don't match.\e[39m"
+fi
+
 echo ""
 exit 0
