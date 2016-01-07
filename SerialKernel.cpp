@@ -8,18 +8,20 @@
 #include "SerialKernel.h"
 
 
-/* This methods takes a h0 hits and looks for the best h1 and h2, somehow.
-    first_h1 and last_h1 specify the iteration range, i.e. the function looks in hits[first_h1, last_h1]
+/* This methods takes a h0 event.hits and looks for the best h1 and h2, somehow.
+    first_h1 and last_h1 specify the iteration range, i.e. the function looks in event.hits[first_h1, last_h1]
     */
 
-std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>& hit_used, const size_t cur_sensor, int first_h1, int last_h1) {
+std::tuple<int, int, float> findBestFit(const Event& event,
+            const Hit& h0, std::vector<bool>& hit_used,
+            const size_t cur_sensor, int first_h1, int last_h1) {
     unsigned int best_hit_h1 = 0;
     unsigned int best_hit_h2 = 0;
     float best_fit = MAX_FLOAT;
     struct Hit h1;
 
     // Calculate new dymax
-    const float s1_z = hits.Zs[sensor_hits.starts[cur_sensor-2]];
+    const float s1_z = event.hits.Zs[event.sensor_hits.starts[cur_sensor-2]];
     const float h_dist = std::abs(s1_z - h0.z);
     const float dymax = PARAM_MAXYSLOPE * h_dist;
 
@@ -29,9 +31,9 @@ std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>&
         if (is_h1_used)
             continue;
 
-        h1.x = hits.Xs[h1_index];
-        h1.y = hits.Ys[h1_index];
-        h1.z = hits.Zs[h1_index];
+        h1.x = event.hits.Xs[h1_index];
+        h1.y = event.hits.Ys[h1_index];
+        h1.z = event.hits.Zs[h1_index];
 
         float dz_inverted = 1.f / (h1.z - h0.z);
 
@@ -44,14 +46,14 @@ std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>&
         // we can preemptively prevent further processing
         //inside_bounds &= first_h2 != -1;
 
-        // Iterate in the third list of hits
+        // Iterate in the third list of event.hits
         // Tiled memory access on h2
-        for(size_t h2_element=0; h2_element<sensor_hits.nums[cur_sensor-4];++h2_element) {
-            size_t h2_index = h2_element + sensor_hits.starts[cur_sensor-4];
+        for(size_t h2_element=0; h2_element<event.sensor_hits.nums[cur_sensor-4];++h2_element) {
+            size_t h2_index = h2_element + event.sensor_hits.starts[cur_sensor-4];
             struct Hit h2;
-            h2.x = hits.Xs[h2_index];
-            h2.y = hits.Ys[h2_index];
-            h2.z = hits.Zs[h2_index];
+            h2.x = event.hits.Xs[h2_index];
+            h2.y = event.hits.Ys[h2_index];
+            h2.z = event.hits.Zs[h2_index];
 
             // Predictions of x and y for this hit
             const float z2_tz = (h2.z - h0.z) * dz_inverted;
@@ -78,10 +80,10 @@ std::tuple<int, int, float> Event::findBestFit(const Hit& h0, std::vector<bool>&
 }
 
 
-std::pair<float, float> Event::findH2Boundaries(Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
+std::pair<float, float> findH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
         float xmin_h2, xmax_h2;
-        const int z_s0 = sensor_Zs[cur_sensor + 2];
-        const int z_s2 = sensor_Zs[second_sensor];
+        const int z_s0 = event.sensor_Zs[cur_sensor + 2];
+        const int z_s2 = event.sensor_Zs[second_sensor];
 
         // Note: Here, we take h0 as if it were h1, the rest
         // of the notation is fine.
@@ -117,7 +119,7 @@ std::pair<float, float> Event::findH2Boundaries(Hit h0, unsigned int cur_sensor,
 * @return
 */
 
-float Event::fitHitToTrack(const float tx, const float ty,
+float fitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2) {
     // tolerances
     const float dz = h2->z - h0->z;
@@ -159,29 +161,29 @@ float Event::fitHitToTrack(const float tx, const float ty,
 */
 
 // this guy should return <hit_candidates, hit_h2_candidates>
-void Event::fillCandidates(CandidatesMap& hit_candidates,
+void fillCandidates(const Event& event, CandidatesMap& hit_candidates,
         CandidatesMap& hit_h2_candidates) {
     /*
      * This loop used to iterate to cur_sensors >= 2, but then a check was made whether
      * cur_sensor is greater or equal to four.
      */
-    for(unsigned int cur_sensor = number_of_sensors - 1; cur_sensor >= 4; --cur_sensor) {
+    for(unsigned int cur_sensor = event.number_of_sensors - 1; cur_sensor >= 4; --cur_sensor) {
         const int second_sensor = cur_sensor - 2;
-        const bool process_h2_candidates = cur_sensor <= number_of_sensors - 3;
+        const bool process_h2_candidates = cur_sensor <= event.number_of_sensors - 3;
 
         // Sensor dependent calculations
         // Iterate in all hits in z0
-        for (int h0_element=0; h0_element < sensor_hits.nums[cur_sensor]; ++h0_element) {
-            assert(h0_element < sensor_hits.nums[cur_sensor]);
-            const int h0_index = sensor_hits.starts[cur_sensor] + h0_element;
+        for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
+            assert(h0_element < event.sensor_hits.nums[cur_sensor]);
+            const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
             struct Hit h0;
-            h0.x = hits.Xs[h0_index];
-            h0.z = hits.Zs[h0_index];
-            const int hitstarts_s2 = sensor_hits.starts[second_sensor];
-            const int hitnums_s2 = sensor_hits.nums[second_sensor];
+            h0.x = event.hits.Xs[h0_index];
+            h0.z = event.hits.Zs[h0_index];
+            const int hitstarts_s2 = event.sensor_hits.starts[second_sensor];
+            const int hitnums_s2 = event.sensor_hits.nums[second_sensor];
 
             float xmin_h2, xmax_h2;
-            std::tie(xmin_h2, xmax_h2) = findH2Boundaries(h0, cur_sensor, second_sensor);
+            std::tie(xmin_h2, xmax_h2) = findH2Boundaries(event, h0, cur_sensor, second_sensor);
 
             bool first_h1_found = false, last_h1_found = false;
             bool first_h2_found = false, last_h2_found = false;
@@ -190,8 +192,8 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
             for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
                 int h1_index = hitstarts_s2 + h1_element;
                 struct Hit h1;
-                h1.x = hits.Xs[h1_index];
-                h1.z = hits.Zs[h1_index];
+                h1.x = event.hits.Xs[h1_index];
+                h1.z = event.hits.Zs[h1_index];
 
                 if (!last_h1_found) {
                     // Check if h0 and h1 are compatible
@@ -201,14 +203,14 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
 
                     // Find the first one
                     if (!first_h1_found && tol_condition) {
-                        ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                        ASSERT(2 * h0_index < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
 
                         hit_candidates[h0_index].first = h1_index;
                         first_h1_found = true;
                     }
                     // The last one, only if the first one has already been found
                     else if (first_h1_found && !tol_condition) {
-                        ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                        ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
 
                         hit_candidates[h0_index].second = h1_index;
                         last_h1_found = true;
@@ -217,13 +219,13 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
 
                 if (process_h2_candidates && !last_h2_found) {
                     if (!first_h2_found && h1.x > xmin_h2) {
-                        ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                        ASSERT(2 * h0_index < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
 
                         hit_h2_candidates[h0_index].first = h1_index;
                         first_h2_found = true;
                     }
                     else if (first_h2_found && h1.x > xmax_h2) {
-                        ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                        ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
 
                         hit_h2_candidates[h0_index].second = h1_index;
                         last_h2_found = true;
@@ -239,13 +241,13 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
             // Note: If first is not found, then both should be -1
             // and there wouldn't be any iteration
             if (first_h1_found && !last_h1_found) {
-                ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
 
                 hit_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
             }
 
             if (process_h2_candidates && first_h2_found && !last_h2_found) {
-                ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
 
                 hit_h2_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
             }
@@ -269,7 +271,7 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
 * @param tracks
 * @param number_of_hits
 */
-void Event::trackForwarding(std::vector<bool>& hit_used,
+void trackForwarding(const Event& event, std::vector<bool>& hit_used,
         const size_t cur_sensor,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
@@ -311,14 +313,14 @@ void Event::trackForwarding(std::vector<bool>& hit_used,
         const int h1_num = t.hits[t_hitsNum - 1];
 
         ASSERT(h0_num < number_of_hits)
-        h0.x = hits.Xs[h0_num];
-        h0.y = hits.Ys[h0_num];
-        h0.z = hits.Zs[h0_num];
+        h0.x = event.hits.Xs[h0_num];
+        h0.y = event.hits.Ys[h0_num];
+        h0.z = event.hits.Zs[h0_num];
 
         ASSERT(h1_num < number_of_hits)
-        const float h1_x = hits.Xs[h1_num];
-        const float h1_y = hits.Ys[h1_num];
-        h1_z = hits.Zs[h1_num];
+        const float h1_x = event.hits.Xs[h1_num];
+        const float h1_y = event.hits.Ys[h1_num];
+        h1_z = event.hits.Zs[h1_num];
 
         // Track forwarding over t, for all hits in the next module
         // Line calculations
@@ -339,9 +341,9 @@ void Event::trackForwarding(std::vector<bool>& hit_used,
         // Only load for get_local_id(1) == 0
         float best_fit = MAX_FLOAT;
 
-        for (size_t h2_element=0; h2_element < sensor_hits.nums[cur_sensor-4]; ++h2_element) {
-            size_t h2_index = h2_element + sensor_hits.starts[cur_sensor-4];
-            struct Hit h2 = {hits.Xs[h2_index], hits.Ys[h2_index], hits.Zs[h2_index]};
+        for (size_t h2_element=0; h2_element < event.sensor_hits.nums[cur_sensor-4]; ++h2_element) {
+            size_t h2_index = h2_element + event.sensor_hits.starts[cur_sensor-4];
+            struct Hit h2 = {event.hits.Xs[h2_index], event.hits.Ys[h2_index], event.hits.Zs[h2_index]};
 
             const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
 
@@ -439,13 +441,13 @@ void Event::trackForwarding(std::vector<bool>& hit_used,
 * @param tracks_to_follow
 */
 
-void Event::trackCreation(const size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
+void trackCreation(const Event& event, const size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
         std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
     //DEBUG << "trackCreation: " << h0_index << std::endl;
     // Track creation starts
-    struct Hit h0 = {hits.Xs[h0_index], hits.Ys[h0_index], hits.Zs[h0_index]};
+    struct Hit h0 = {event.hits.Xs[h0_index], event.hits.Ys[h0_index], event.hits.Zs[h0_index]};
     unsigned int best_hit_h1, best_hit_h2;
     float best_fit;
 
@@ -455,7 +457,7 @@ void Event::trackCreation(const size_t cur_sensor, CandidatesMap& hit_candidates
     const int last_h1 = hit_candidates[h0_index].second;
 
     // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
-    std::tie(best_hit_h1, best_hit_h2, best_fit) = findBestFit(h0, hit_used, cur_sensor, first_h1, last_h1);
+    std::tie(best_hit_h1, best_hit_h2, best_fit) = findBestFit(event, h0, hit_used, cur_sensor, first_h1, last_h1);
 
     if (best_fit < MAX_FLOAT) {
         // We have a best fit! - haven't we?
@@ -499,7 +501,7 @@ void Event::trackCreation(const size_t cur_sensor, CandidatesMap& hit_candidates
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-std::vector<Track> Event::serialSearchByTriplets() {
+std::vector<Track> serialSearchByTriplets(const Event& event) {
 
 
     // Data initialization
@@ -517,8 +519,8 @@ std::vector<Track> Event::serialSearchByTriplets() {
     //struct Track* const tracks = new Track[MAX_TRACKS];
     std::vector<struct Track> tracks;
     tracks.reserve(MAX_TRACKS);
-    DEBUG << "number of sensors: " << number_of_sensors << std::endl;
-    DEBUG << "number of hits: " << number_of_hits << std::endl;
+    DEBUG << "number of sensors: " << event.number_of_sensors << std::endl;
+    DEBUG << "number of hits: " << event.number_of_hits << std::endl;
     // Per event datatypes
     // OA: we pass a tracks pointer to be used in here.
     //__global struct Track* tracks = dev_tracks + tracks_offset;
@@ -528,7 +530,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
 
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
-    std::vector<bool> hit_used = std::vector<bool>(number_of_hits, false);
+    std::vector<bool> hit_used = std::vector<bool>(event.number_of_hits, false);
     CandidatesMap hit_candidates;
     CandidatesMap hit_h2_candidates;
 
@@ -537,10 +539,10 @@ std::vector<Track> Event::serialSearchByTriplets() {
     //int* tracks_to_follow = new int[TTF_MODULO];
 
     std::vector<int> weak_tracks;
-    weak_tracks.reserve(number_of_hits);
+    weak_tracks.reserve(event.number_of_hits);
 
     std::vector<Track> tracklets;
-    tracklets.reserve(number_of_hits);
+    tracklets.reserve(event.number_of_hits);
 
     // Initialize variables according to event number and sensor side
     // Insert pointers (atomics)
@@ -565,7 +567,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
     // Not needed anymore
     //const int cond_sh_hit_mult = min((int) get_local_size(1), SH_HIT_MULT);
     //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
-    fillCandidates(hit_candidates, hit_h2_candidates);
+    fillCandidates(event, hit_candidates, hit_h2_candidates);
     /*for (int i = 0; i < 2*number_of_hits; ++i)
         DEBUG << hit_h2_candidates[i] << ", ";
     DEBUG << std::endl;*/
@@ -573,7 +575,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
     // Prepare s1 and s2 for the first iteration
     unsigned int prev_ttf, last_ttf = 0;
 
-    for (unsigned int cur_sensor = number_of_sensors-1; cur_sensor >= 4; --cur_sensor) {
+    for (unsigned int cur_sensor = event.number_of_sensors-1; cur_sensor >= 4; --cur_sensor) {
 
         // OA: that's not needed anymore
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
@@ -606,7 +608,7 @@ std::vector<Track> Event::serialSearchByTriplets() {
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         // 2a. Track forwarding
-        trackForwarding(hit_used,
+        trackForwarding(event, hit_used,
             cur_sensor, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks);
 
@@ -619,11 +621,11 @@ std::vector<Track> Event::serialSearchByTriplets() {
 
         //DEBUG << "sensor_data[0]: " << sensor_data[0] << std::endl;
         for(int h0_element = 0;
-            h0_element < sensor_hits.nums[cur_sensor];
+            h0_element < event.sensor_hits.nums[cur_sensor];
             ++h0_element) {
-            int h0_index = h0_element + sensor_hits.starts[cur_sensor];
+            int h0_index = h0_element + event.sensor_hits.starts[cur_sensor];
             if (!hit_used[h0_index]) {
-                trackCreation(cur_sensor,
+                trackCreation(event, cur_sensor,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
                     tracklets,
                     tracks_to_follow);

@@ -155,7 +155,7 @@ int cpuPixelSearchByTripletSerialRun(
 #ifdef TIMING_ENABLED
         timing.start();
 #endif
-        std::vector<Track> tracks = event.serialSearchByTriplets();
+        std::vector<Track> tracks = serialSearchByTriplets(event);
 #ifdef  TIMING_ENABLED
         timing.stop();
 #endif
