@@ -161,11 +161,12 @@ float Event::fitHitToTrack(const float tx, const float ty,
 // this guy should return <hit_candidates, hit_h2_candidates>
 void Event::fillCandidates(CandidatesMap& hit_candidates,
         CandidatesMap& hit_h2_candidates) {
-    //const int blockDim_product = get_local_size(0) * get_local_size(1);
-    for(unsigned int cur_sensor = number_of_sensors - 1; cur_sensor >= 2; --cur_sensor) {
+    /*
+     * This loop used to iterate to cur_sensors >= 2, but then a check was made whether
+     * cur_sensor is greater or equal to four.
+     */
+    for(unsigned int cur_sensor = number_of_sensors - 1; cur_sensor >= 4; --cur_sensor) {
         const int second_sensor = cur_sensor - 2;
-
-        const bool process_h1_candidates = cur_sensor >= 4;
         const bool process_h2_candidates = cur_sensor <= number_of_sensors - 3;
 
         // Sensor dependent calculations
@@ -182,73 +183,71 @@ void Event::fillCandidates(CandidatesMap& hit_candidates,
             float xmin_h2, xmax_h2;
             std::tie(xmin_h2, xmax_h2) = findH2Boundaries(h0, cur_sensor, second_sensor);
 
-            if (cur_sensor >= 4) {
-                bool first_h1_found = false, last_h1_found = false;
-                bool first_h2_found = false, last_h2_found = false;
+            bool first_h1_found = false, last_h1_found = false;
+            bool first_h2_found = false, last_h2_found = false;
 
-                // Iterate in all hits in z1
-                for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
-                    int h1_index = hitstarts_s2 + h1_element;
-                    struct Hit h1;
-                    h1.x = hits.Xs[h1_index];
-                    h1.z = hits.Zs[h1_index];
+            // Iterate in all hits in z1
+            for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
+                int h1_index = hitstarts_s2 + h1_element;
+                struct Hit h1;
+                h1.x = hits.Xs[h1_index];
+                h1.z = hits.Zs[h1_index];
 
-                    if (process_h1_candidates && !last_h1_found) {
-                        // Check if h0 and h1 are compatible
-                        const float h_dist = std::abs(h1.z - h0.z);
-                        const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
-                        const bool tol_condition = std::abs(h1.x - h0.x) < dxmax;
+                if (!last_h1_found) {
+                    // Check if h0 and h1 are compatible
+                    const float h_dist = std::abs(h1.z - h0.z);
+                    const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
+                    const bool tol_condition = std::abs(h1.x - h0.x) < dxmax;
 
-                        // Find the first one
-                        if (!first_h1_found && tol_condition) {
-                            ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                    // Find the first one
+                    if (!first_h1_found && tol_condition) {
+                        ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                            hit_candidates[h0_index].first = h1_index;
-                            first_h1_found = true;
-                        }
-                        // The last one, only if the first one has already been found
-                        else if (first_h1_found && !tol_condition) {
-                            ASSERT(2 * h0_index + 1 < 2 * (sensor_hit.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
-
-                            hit_candidates[h0_index].second = h1_index;
-                            last_h1_found = true;
-                        }
+                        hit_candidates[h0_index].first = h1_index;
+                        first_h1_found = true;
                     }
+                    // The last one, only if the first one has already been found
+                    else if (first_h1_found && !tol_condition) {
+                        ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                    if (process_h2_candidates && !last_h2_found) {
-                        if (!first_h2_found && h1.x > xmin_h2) {
-                            ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
-
-                            hit_h2_candidates[h0_index].first = h1_index;
-                            first_h2_found = true;
-                        }
-                        else if (first_h2_found && h1.x > xmax_h2) {
-                            ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
-
-                            hit_h2_candidates[h0_index].second = h1_index;
-                            last_h2_found = true;
-                        }
-                    }
-
-                    if ((!process_h1_candidates || last_h1_found) &&
-                        (!process_h2_candidates || last_h2_found)) {
-                        break;
+                        hit_candidates[h0_index].second = h1_index;
+                        last_h1_found = true;
                     }
                 }
 
-                // Note: If first is not found, then both should be -1
-                // and there wouldn't be any iteration
-                if (process_h1_candidates && first_h1_found && !last_h1_found) {
-                    ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+                if (process_h2_candidates && !last_h2_found) {
+                    if (!first_h2_found && h1.x > xmin_h2) {
+                        ASSERT(2 * h0_index < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
 
-                    hit_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
+                        hit_h2_candidates[h0_index].first = h1_index;
+                        first_h2_found = true;
+                    }
+                    else if (first_h2_found && h1.x > xmax_h2) {
+                        ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+
+                        hit_h2_candidates[h0_index].second = h1_index;
+                        last_h2_found = true;
+                    }
                 }
 
-                if (process_h2_candidates && first_h2_found && !last_h2_found) {
-                    ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
-
-                    hit_h2_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
+                if (last_h1_found &&
+                    (!process_h2_candidates || last_h2_found)) {
+                    break;
                 }
+            }
+
+            // Note: If first is not found, then both should be -1
+            // and there wouldn't be any iteration
+            if (first_h1_found && !last_h1_found) {
+                ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+
+                hit_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
+            }
+
+            if (process_h2_candidates && first_h2_found && !last_h2_found) {
+                ASSERT(2 * h0_index + 1 < 2 * (sensor_hits.starts[number_of_sensors-1] + sensor_hits.nums[number_of_sensors-1]))
+
+                hit_h2_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
             }
         }
     }
