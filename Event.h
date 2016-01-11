@@ -32,29 +32,29 @@ public:
     virtual ~Event();
 };
 
-    void fillCandidates(const Event&, CandidatesMap& hit_candidates,
-        CandidatesMap& hit_h2_candidates);
+void fillCandidates(const Event&, CandidatesMap& hit_candidates,
+    CandidatesMap& hit_h2_candidates);
 
-    void trackCreation(const Event&, size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
-        std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
-        std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
+void trackCreation(const Event&, size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
+    std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
+    std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
 
-    void trackForwarding(const Event&, std::vector<bool>& hit_used,
-        size_t cur_sensor,
-        std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
-        const unsigned int prev_ttf, std::vector<Track>& tracklets,
-        std::vector<struct Track>& tracks);
+void trackForwarding(const Event&, std::vector<bool>& hit_used,
+    size_t cur_sensor,
+    std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
+    const unsigned int prev_ttf, std::vector<Track>& tracklets,
+    std::vector<struct Track>& tracks);
 
-    static float fitHitToTrack(const float tx, const float ty,
-        const struct Hit* h0, const float h1_z, const struct Hit* h2);
+static float fitHitToTrack(const float tx, const float ty,
+    const struct Hit* h0, const float h1_z, const struct Hit* h2);
 
-    std::pair<float, float> findH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
-    std::tuple<int, int, float> findBestFit(const Event& event, const Hit& h0,
-                                            std::vector<bool>& hit_used, size_t cur_sensor,
-                                            int first_h1, int last_h1);
+std::pair<float, float> findH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
+std::tuple<int, int, float> findBestFit(const Event& event, const Hit& h0,
+                                        std::vector<bool>& hit_used, size_t cur_sensor,
+                                        int first_h1, int last_h1);
 
 
-    std::vector<Track> serialSearchByTriplets(const Event&);
+std::vector<Track> serialSearchByTriplets(const Event&);
 
 
 #endif
