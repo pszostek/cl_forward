@@ -42,6 +42,8 @@ function match() {
    $READER results/$1_serial_txt.out $REFERENCE_SOURCE/$1_serial_txt.out --test-equal > /dev/null
 }
 
+# get rid of all the results present locally
+rm results/*
 
 set $(seq 0 50) 77
 equal="true"
