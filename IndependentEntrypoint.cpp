@@ -154,6 +154,8 @@ int main(int argc, char *argv[])
         outtype = OutType::Text;
     } else {
         std::cerr << "Output type " << out_opt << " not known." << std::endl;
+        printUsage(argv);
+        return -1;
     }
 
     // Check how many files were specified and
@@ -206,6 +208,8 @@ int main(int argc, char *argv[])
 #endif
     } else {
         std::cout << "Execution mode " << mode_opt << " not yet supported" << std::endl;
+        printUsage(argv);
+        return -1;
     }
 
     // Post execution entrypoint
