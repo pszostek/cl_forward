@@ -1,17 +1,40 @@
 #!/usr/bin/env bash
 
 READER="python EventAnalyzer/trackreader.py"
+
 REFERENCE_SOURCE=results_serial
-if [ "x$1" == 'x-i' ]; then # for icc
-    REFERENCE_SOURCE=results_serial_icc
-fi
+EXEC_MODE=-serial
+for i in "$@"; do
+    case $i in
+        -g|--gcc)
+            REFERENCE_SOURCE=results_serial
+            shift
+            ;;
+        -i|--icc)
+            REFERENCE_SOURCE=results_serial_icc
+            shift
+            ;;
+        -o|--openmp)
+            EXEC_MODE=-openmp
+            shift
+            ;;
+        -t|--tbb)
+            EXEC_MODE=-tbb
+            shift
+            ;;
+        *)
+            echo "Unknown option provided: " $i
+            exit 1
+            ;;
+    esac
+done
 
 function tracks_in_reference() {
     echo $($READER $REFERENCE_SOURCE/$1_serial_txt.out $REFERENCE_SOURCE/$1_serial_txt.out --tracks)
 }
 
 function current_tracks() {
-    bin/x86_64/Release/clpixel -serial -tex mcdata/$1.dat >/dev/null
+    bin/x86_64/Release/clpixel $EXEC_MODE -tex mcdata/$1.dat >/dev/null
     echo $($READER results/$1_serial_txt.out results/$1_serial_txt.out --tracks)
 }
 
@@ -45,7 +68,7 @@ echo   "--------+------+------+-------+"
 if [ $equal == "true" ]; then
     echo -e "\e[32mCurrent and reference results match.\e[39m"
 else
-    echo -e "\e[31mCurrent and reference results don't match.\e[39m"
+    echo -e "\e[31mCurrent and reference results don\'t match.\e[39m"
 fi
 
 echo ""
