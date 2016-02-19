@@ -637,12 +637,12 @@ std::vector<Track> serialSearchByTriplets(const Event& event) {
     for (unsigned int ttf_element = last_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
 
         const int fulltrackno = tracks_to_follow[ttf_element];
-        const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
+        const bool is_track = fulltrackno & 0x80000000;
         const int trackno = fulltrackno & 0x0FFFFFFF;
 
         // Here we are only interested in three-hit tracks,
         // to mark them as "doubtful"
-        if (track_flag) {
+        if (is_track) {
             weak_tracks.push_back(trackno);
             ASSERT(weak_tracks.size() < number_of_hits);
         }
