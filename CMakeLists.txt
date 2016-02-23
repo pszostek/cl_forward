@@ -158,7 +158,8 @@ endif()
 
 # gcc/g++ specific compile options
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  set( COMPILER_FLAGS "${COMPILER_FLAGS} -msse2 " )
+  set( COMPILER_FLAGS "${COMPILER_FLAGS} -msse2 -fopenmp " )
+  set( LINKER_FLAGS "${LINKER_FLAGS} -fopenmp " )
 
   # Note: "rt" is not present on mingw
   if( UNIX )
@@ -190,8 +191,10 @@ elseif( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC" )
   set( LINKER_FLAGS "${LINKER_FLAGS} ${EXTRA_LINKER_FLAGS_MSVC}  /SAFESEH:NO ")
   set( ADDITIONAL_LIBRARIES ${ADDITIONAL_LIBRARIES} ${EXTRA_LIBRARIES_MSVC} )
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+  set( COMPILER_FLAGS "${COMPILER_FLAGS} -openmp" )
+  set( LINKER_FLAGS "${LINKER_FLAGS} -openmp" )
   if( VECREPORT )
-    set( COMPILER_FLAGS "${COMPILER_FLAGS} -qopt-report-phase=vec -qopt-report=2" )
+    set( COMPILER_FLAGS "${COMPILER_FLAGS} -qopt-report-phase=vec -qopt-report=5" )
   endif( )
 
 endif( )
