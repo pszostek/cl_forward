@@ -77,7 +77,11 @@ static float OMPFitHitToTrack(const float tx, const float ty,
     const struct Hit* h0, const float h1_z, const struct Hit* h2);
 
 
-std::pair<float, float> OMPFindH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
+void OMPFindH2Boundaries(const int* __restrict__ sensor_Zs,
+    const float h0_x, const float h0_z, const unsigned int cur_sensor,
+    const unsigned int second_sensor, float* __restrict__ xmin_h2_ptr,
+    float* __restrict__ xmax_h2_ptr);
+
 
 std::tuple<int, int, float> OMPFindBestFit(const Event& event, const Hit& h0,
                                         const std::vector<bool>& hit_used, const size_t cur_sensor,

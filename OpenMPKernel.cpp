@@ -89,28 +89,31 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
 }
 
 
-std::pair<float, float> OMPFindH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
-        float xmin_h2, xmax_h2;
-        const int z_s0 = event.sensor_Zs[cur_sensor + 2];
-        const int z_s2 = event.sensor_Zs[second_sensor];
+#pragma omp declare simd notinbranch
+void OMPFindH2Boundaries(const int* __restrict__ sensor_Zs,
+    const float h0_x, const float h0_z, const unsigned int cur_sensor,
+    const unsigned int second_sensor, float* __restrict__ xmin_h2_ptr,
+    float* __restrict__ xmax_h2_ptr) {
+        const int z_s0 = sensor_Zs[cur_sensor + 2];
+        const int z_s2 = sensor_Zs[second_sensor];
+
 
         // Note: Here, we take h0 as if it were h1, the rest
         // of the notation is fine.
 
         // Min and max possible x0s
-        const float h_dist = std::abs(h0.z - z_s0);
+        const float h_dist = std::abs(h0_z - z_s0);
         const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
-        const float x0_min = h0.x - dxmax;
-        const float x0_max = h0.x + dxmax;
+        const float x0_min = h0_x - dxmax;
+        const float x0_max = h0_x + dxmax;
 
         // Min and max possible h1s for that h0
-        float z2_tz = (((float) z_s2 - z_s0)) / (h0.z - z_s0);
-        const float x_min = x0_max + (h0.x - x0_max) * z2_tz;
-        xmin_h2 = x_min - PARAM_TOLERANCE_CANDIDATES;
+        float z2_tz = (((float) z_s2 - z_s0)) / (h0_z - z_s0);
+        const float x_min = x0_max + (h0_x - x0_max) * z2_tz;
+        *xmin_h2_ptr = x_min - PARAM_TOLERANCE_CANDIDATES;
 
-        const float x_max = x0_min + (h0.x - x0_min) * z2_tz;
-        xmax_h2 = x_max + PARAM_TOLERANCE_CANDIDATES;
-        return std::make_pair(xmin_h2, xmax_h2);
+        const float x_max = x0_min + (h0_x - x0_min) * z2_tz;
+        *xmax_h2_ptr = x_max + PARAM_TOLERANCE_CANDIDATES;
 }
 
 
@@ -184,6 +187,20 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
         const int second_sensor = cur_sensor - 2;
         const bool process_h2_candidates = cur_sensor <= event.number_of_sensors - 3;
 
+        std::pair<float, float> h2_boundaries[event.sensor_hits.nums[cur_sensor]];
+
+        for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
+            const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
+            // TODO: PS: these accesses have to be aligned to 64 bytes
+            const float h0_x = event.hits.Xs[h0_index];
+            const float h0_z = event.hits.Zs[h0_index];
+            float xmin_h2, xmax_h2;
+            OMPFindH2Boundaries(event.sensor_Zs, h0_x, h0_z, cur_sensor, second_sensor, &xmin_h2, &xmax_h2);
+            h2_boundaries[h0_element].first = xmin_h2;
+            h2_boundaries[h0_element].second = xmax_h2;
+
+        }
+
         // Sensor dependent calculations
         // Iterate in all hits in z0
         for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
@@ -196,7 +213,7 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
             const int hitnums_s2 = event.sensor_hits.nums[second_sensor];
 
             float xmin_h2, xmax_h2;
-            std::tie(xmin_h2, xmax_h2) = OMPFindH2Boundaries(event, h0, cur_sensor, second_sensor);
+            std::tie(xmin_h2, xmax_h2) =  h2_boundaries[h0_element];
 
             bool first_h1_found = false, last_h1_found = false;
             bool first_h2_found = false, last_h2_found = false;
