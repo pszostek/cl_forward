@@ -1,5 +1,6 @@
 
 #include "Tools.h"
+#include "Definitions.h"
 
 /*int*   h_no_sensors;
 int*   h_no_hits;
@@ -45,27 +46,31 @@ int convertClToString(const char *filename, std::string& s)
 void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input) {
   // Order *all* the input vectors by h_hit_Xs natural order
   // per sensor
-  int number_of_sensors, number_of_hits;
-  int *sensor_Zs;
-  unsigned int *hit_IDs;
-  SensorHits sensor_hits;
-  Hits hits;
   const int number_of_input_files = input.size();
   //const std::vector<uint8_t>* startingEvent_input = input[0];
   //this call is just to set h_no_sensors and number_of_sensors
   //setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(),
   //  number_of_sensors, number_of_hits, h_sensors_Zs, sensor_hits, hits);
 
+  #pragma omp parallel for num_threads(EVENT_LEVEL_PARALLELISM)
   for (int i=0; i < number_of_input_files; ++i) {
+    int number_of_sensors, number_of_hits;
+    int *sensor_Zs;
+    unsigned int *hit_IDs;
+    SensorHits sensor_hits;
+    Hits hits;
+
     int acc_hitnums = 0;
     const std::vector<uint8_t>* event_input = input[i];
     setHPointersFromInput((uint8_t*) &(*event_input)[0], event_input->size(),
       number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
       hit_IDs, hits);
 
+    #pragma omp parallel for num_threads(SENSOR_LEVEL_PARALLELISM) shared(acc_hitnums)
     for (int j=0; j<number_of_sensors; j++) {
       const int hitnums = sensor_hits.nums[j];
       quicksort(hits.Xs, hits.Ys, hits.Zs, hit_IDs, acc_hitnums, acc_hitnums + hitnums - 1);
+      #pragma omp critical
       acc_hitnums += hitnums;
     }
   }
@@ -256,10 +261,18 @@ int findClosestModule(const int z, const std::map<int, int>& zhit_to_module){
 }
 
 void quicksort (float* a, float* b, float* c, unsigned int* d, int start, int end) {
-    if (start < end) {
-        const int pivot = divide(a, b, c, d, start, end);
-        quicksort(a, b, c, d, start, pivot - 1);
-        quicksort(a, b, c, d, pivot + 1, end);
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            if (start < end) {
+                const int pivot = divide(a, b, c, d, start, end);
+                #pragma omp task
+                    quicksort(a, b, c, d, start, pivot - 1);
+                #pragma omp task
+                    quicksort(a, b, c, d, pivot + 1, end);
+            }
+        }
     }
 }
 
