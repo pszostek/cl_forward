@@ -121,8 +121,11 @@ std::pair<float, float> OMPFindH2Boundaries(const Event& event, Hit h0, unsigned
 * @return
 */
 
+
+#pragma omp declare simd notinbranch
 float OMPFitHitToTrack(const float tx, const float ty,
-        const struct Hit* h0, const float h1_z, const struct Hit* h2) {
+        const struct Hit* __restrict__ h0, const float h1_z, const struct Hit* __restrict__ h2) {
+
     // tolerances
     const float dz = h2->z - h0->z;
     const float x_prediction = h0->x + tx * dz;
