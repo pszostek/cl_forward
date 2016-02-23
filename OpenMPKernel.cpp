@@ -6,15 +6,17 @@
 #include "Logger.h"
 #include "KernelDefinitions.h"
 #include "SerialKernel.h"
+#include "Definitions.h"
 
 
 /* This methods takes a h0 event.hits and looks for the best h1 and h2, somehow.
     first_h1 and last_h1 specify the iteration range, i.e. the function looks in event.hits[first_h1, last_h1]
     */
 
-std::tuple<int, int, float> findBestFit(const Event& event,
-            const Hit& h0, std::vector<bool>& hit_used,
+std::tuple<int, int, float> OMPFindBestFit(const Event& event,
+            const Hit& h0, const std::vector<bool>& hit_used,
             const size_t cur_sensor, int first_h1, int last_h1) {
+
     unsigned int best_hit_h1 = 0;
     unsigned int best_hit_h2 = 0;
     float best_fit = MAX_FLOAT;
@@ -80,7 +82,7 @@ std::tuple<int, int, float> findBestFit(const Event& event,
 }
 
 
-std::pair<float, float> findH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
+std::pair<float, float> OMPFindH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor) {
         float xmin_h2, xmax_h2;
         const int z_s0 = event.sensor_Zs[cur_sensor + 2];
         const int z_s2 = event.sensor_Zs[second_sensor];
@@ -119,7 +121,7 @@ std::pair<float, float> findH2Boundaries(const Event& event, Hit h0, unsigned in
 * @return
 */
 
-float fitHitToTrack(const float tx, const float ty,
+float OMPFitHitToTrack(const float tx, const float ty,
         const struct Hit* h0, const float h1_z, const struct Hit* h2) {
     // tolerances
     const float dz = h2->z - h0->z;
@@ -161,7 +163,7 @@ float fitHitToTrack(const float tx, const float ty,
 */
 
 // this guy should return <hit_candidates, hit_h2_candidates>
-void fillCandidates(const Event& event, CandidatesMap& hit_candidates,
+void OMPFillCandidates(const Event& event, CandidatesMap& hit_candidates,
         CandidatesMap& hit_h2_candidates) {
     /*
      * This loop used to iterate to cur_sensors >= 2, but then a check was made whether
@@ -183,7 +185,7 @@ void fillCandidates(const Event& event, CandidatesMap& hit_candidates,
             const int hitnums_s2 = event.sensor_hits.nums[second_sensor];
 
             float xmin_h2, xmax_h2;
-            std::tie(xmin_h2, xmax_h2) = findH2Boundaries(event, h0, cur_sensor, second_sensor);
+            std::tie(xmin_h2, xmax_h2) = OMPFindH2Boundaries(event, h0, cur_sensor, second_sensor);
 
             bool first_h1_found = false, last_h1_found = false;
             bool first_h2_found = false, last_h2_found = false;
@@ -271,7 +273,7 @@ void fillCandidates(const Event& event, CandidatesMap& hit_candidates,
 * @param tracks
 * @param number_of_hits
 */
-void trackForwarding(const Event& event, std::vector<bool>& hit_used,
+void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         const size_t cur_sensor,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
         const unsigned int prev_ttf, std::vector<Track>& tracklets,
@@ -292,7 +294,7 @@ void trackForwarding(const Event& event, std::vector<bool>& hit_used,
         // OA: tracks_to_follow is limited to TTF_MODULO elements.
         unsigned fulltrackno = *it;
         // OA: fulltrackno has not only the index into tracks_pointer encoded, but also:
-        // bit 31: track_flag is set in the trackCreation function
+        // bit 31: track_flag is set in the OMPTrackCreation function
         // bits 30-28: encodes skipped_modules
         const bool track_flag = (fulltrackno & 0x80000000) == 0x80000000;
         skipped_modules = (fulltrackno & 0x70000000) >> 28;
@@ -345,7 +347,7 @@ void trackForwarding(const Event& event, std::vector<bool>& hit_used,
             size_t h2_index = h2_element + event.sensor_hits.starts[cur_sensor-4];
             struct Hit h2 = {event.hits.Xs[h2_index], event.hits.Ys[h2_index], event.hits.Zs[h2_index]};
 
-            const float fit = fitHitToTrack(tx, ty, &h0, h1_z, &h2);
+            const float fit = OMPFitHitToTrack(tx, ty, &h0, h1_z, &h2);
 
             if (fit < best_fit) {
                 best_fit = fit;
@@ -441,11 +443,11 @@ void trackForwarding(const Event& event, std::vector<bool>& hit_used,
 * @param tracks_to_follow
 */
 
-void trackCreation(const Event& event, const size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
+void OMPTrackCreation(const Event& event, const size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
         std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
-    //DEBUG << "trackCreation: " << h0_index << std::endl;
+    //DEBUG << "OMPTrackCreation: " << h0_index << std::endl;
     // Track creation starts
     struct Hit h0 = {event.hits.Xs[h0_index], event.hits.Ys[h0_index], event.hits.Zs[h0_index]};
     unsigned int best_hit_h1, best_hit_h2;
@@ -457,7 +459,7 @@ void trackCreation(const Event& event, const size_t cur_sensor, CandidatesMap& h
     const int last_h1 = hit_candidates[h0_index].second;
 
     // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
-    std::tie(best_hit_h1, best_hit_h2, best_fit) = findBestFit(event, h0, hit_used, cur_sensor, first_h1, last_h1);
+    std::tie(best_hit_h1, best_hit_h2, best_fit) = OMPFindBestFit(event, h0, hit_used, cur_sensor, first_h1, last_h1);
 
     if (best_fit < MAX_FLOAT) {
         // We have a best fit! - haven't we?
@@ -501,7 +503,7 @@ void trackCreation(const Event& event, const size_t cur_sensor, CandidatesMap& h
 * @param dev_event_offsets
 * @param dev_hit_candidates
 */
-std::vector<Track> serialSearchByTriplets(const Event& event) {
+std::vector<Track> OMPSearchByTriplets(const Event& event) {
 
 
     // Data initialization
@@ -567,7 +569,7 @@ std::vector<Track> serialSearchByTriplets(const Event& event) {
     // Not needed anymore
     //const int cond_sh_hit_mult = min((int) get_local_size(1), SH_HIT_MULT);
     //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
-    fillCandidates(event, hit_candidates, hit_h2_candidates);
+    OMPFillCandidates(event, hit_candidates, hit_h2_candidates);
     /*for (int i = 0; i < 2*number_of_hits; ++i)
         DEBUG << hit_h2_candidates[i] << ", ";
     DEBUG << std::endl;*/
@@ -597,9 +599,9 @@ std::vector<Track> serialSearchByTriplets(const Event& event) {
         */
 
         // We need this barrier if we are not using shared memory for the hits.
-        // Removing shmem for hits removes the barriers in trackForwarding.
+        // Removing shmem for hits removes the barriers in OMPTrackForwarding.
         // Otherwise the three statements from before could be executed before / after updating
-        // the values inside trackForwarding
+        // the values inside OMPTrackForwarding
         prev_ttf = last_ttf;
         last_ttf = tracks_to_follow.size();
         //DEBUG << "diff_ttf: " << diff_ttf << std::endl;
@@ -608,7 +610,7 @@ std::vector<Track> serialSearchByTriplets(const Event& event) {
         //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
         // 2a. Track forwarding
-        trackForwarding(event, hit_used,
+        OMPTrackForwarding(event, hit_used,
             cur_sensor, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks);
 
@@ -625,7 +627,7 @@ std::vector<Track> serialSearchByTriplets(const Event& event) {
             ++h0_element) {
             int h0_index = h0_element + event.sensor_hits.starts[cur_sensor];
             if (!hit_used[h0_index]) {
-                trackCreation(event, cur_sensor,
+                OMPTrackCreation(event, cur_sensor,
                     hit_candidates, h0_index, hit_used, hit_h2_candidates,
                     tracklets,
                     tracks_to_follow);

@@ -21,11 +21,12 @@ option(BUILD_VERBOSE "BUILD_VERBOSE" ON)
 
 if( BUILD_OPENCL )
   set( SOURCE_FILES Event.cpp Tools.cpp Logger.cpp GpuKernelInvoker.cpp
-    PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp)
+      PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp)
   set( EXTRA_FILES Kernel.cl KernelDefinitions.h )
 else()
   set( SOURCE_FILES Event.cpp Tools.cpp Logger.cpp
-    PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp)
+    PixelSearchByTriplet.cpp IndependentEntrypoint.cpp SerialKernel.cpp
+    OpenMPKernel.cpp)
 endif()
 ############################################################################
 
