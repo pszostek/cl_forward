@@ -284,6 +284,7 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
 * @param tracks
 * @param number_of_hits
 */
+
 void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         const size_t cur_sensor,
         std::vector<int>& tracks_to_follow, std::vector<int>& weak_tracks,
@@ -291,10 +292,11 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         std::vector<struct Track>& tracks) {
 
     std::vector<int> new_tracks_to_follow;
-    for (auto it = tracks_to_follow.begin() + prev_ttf; it != tracks_to_follow.end(); ++it) {
+
+    #pragma omp parallel for num_threads(HIT_LEVEL_PARALLELISM) schedule(static)
+    for (unsigned ttf_index = prev_ttf; ttf_index < tracks_to_follow.size() ; ++ttf_index) {
 
         // These variables need to go here, shared memory and scope requirements
-        float tx, ty, h1_z;
         unsigned int trackno, skipped_modules;
         unsigned int best_hit_h2 = 0;
         struct Track t;
@@ -303,7 +305,7 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         //DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
 
         // OA: tracks_to_follow is limited to TTF_MODULO elements.
-        unsigned fulltrackno = *it;
+        unsigned fulltrackno = tracks_to_follow[ttf_index];
         // OA: fulltrackno has not only the index into tracks_pointer encoded, but also:
         // bit 31: track_flag is set in the OMPTrackCreation function
         // bits 30-28: encodes skipped_modules
@@ -333,15 +335,15 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         ASSERT(h1_num < number_of_hits)
         const float h1_x = event.hits.Xs[h1_num];
         const float h1_y = event.hits.Ys[h1_num];
-        h1_z = event.hits.Zs[h1_num];
+        const float h1_z = event.hits.Zs[h1_num];
 
         // Track forwarding over t, for all hits in the next module
         // Line calculations
         const float td = 1.0f / (h1_z - h0.z);
         const float txn = (h1_x - h0.x);
         const float tyn = (h1_y - h0.y);
-        tx = txn * td;
-        ty = tyn * td;
+        const float tx = txn * td;
+        const float ty = tyn * td;
 
         // Search for a best fit
         // Load shared elements
@@ -372,6 +374,7 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         if (best_fit != MAX_FLOAT) {
             // Mark h2 as used
             ASSERT(best_hit_h2 < number_of_hits)
+            #pragma omp critical
             hit_used[best_hit_h2] = true;
 
             // Update the tracks to follow, we'll have to follow up
@@ -393,18 +396,24 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
                 // If it is a track made out of less than or equal than 4 hits,
                 // we have to allocate it in the tracks vector
                 // XXX OA: no more atomic_add needed
-                trackno = tracks.size();
-                // XXX PS: without this spell the whole thing doesnt work...
-                tracks.push_back(Track());
+
+                #pragma omp critical
+                {
+                    trackno = tracks.size();
+                    // XXX PS: without this spell the whole thing doesnt work..
+                    tracks.emplace_back();
+                }
             }
 
             // Copy the track into tracks
             ASSERT(trackno < number_of_hits)
+            #pragma omp critical
             tracks[trackno] = t;
 
             // Add the tracks to the bag of tracks to_follow
             // XXX OA: no more atomic_add needed
             //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
+            #pragma omp critical
             new_tracks_to_follow.push_back(trackno);
         }
         // A track just skipped a module
@@ -415,12 +424,14 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
 
             // Add the tracks to the bag of tracks to_follow
             //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
+            #pragma omp critical
             new_tracks_to_follow.push_back(trackno);
         }
         // If there are only three hits in this track,
         // mark it as "doubtful"
         else if (t.hitsNum == 3) {
             //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
+            #pragma omp critical
             weak_tracks.push_back(trackno);
             ASSERT(weak_tracks.size() < number_of_hits)
         }
