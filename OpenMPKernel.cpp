@@ -22,40 +22,47 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
     float best_fit = MAX_FLOAT;
     struct Hit h1;
 
+    int* __restrict__ sensor_starts = event.sensor_hits.starts;
+    int* __restrict__ sensor_nums = event.sensor_hits.nums;
+
+    // TODO: PS: event.hits.{Xs,Ys,Zs} should be aligned to 64 bytes. They are set
+    //           in Event.cpp:5
+    float* __restrict__ hits_xs = event.hits.Xs; 
+    float* __restrict__ hits_ys = event.hits.Ys; 
+    float* __restrict__ hits_zs = event.hits.Zs; 
+
     // Calculate new dymax
-    const float s1_z = event.hits.Zs[event.sensor_hits.starts[cur_sensor-2]];
+    const float s1_z = hits_zs[sensor_starts[cur_sensor-2]];
     const float h_dist = std::abs(s1_z - h0.z);
     const float dymax = PARAM_MAXYSLOPE * h_dist;
 
+    const unsigned HIT_LEVEL_PARALLELISM_SQRT = sqrt(HIT_LEVEL_PARALLELISM);
+
+    #pragma omp parallel for num_threads(HIT_LEVEL_PARALLELISM_SQRT) schedule(static)
     for (unsigned int h1_index=first_h1; h1_index < last_h1; ++h1_index) {
         bool is_h1_used = hit_used[h1_index];
 
         if (is_h1_used)
             continue;
 
-        h1.x = event.hits.Xs[h1_index];
-        h1.y = event.hits.Ys[h1_index];
-        h1.z = event.hits.Zs[h1_index];
+        h1.x = hits_xs[h1_index];
+        h1.y = hits_ys[h1_index];
+        h1.z = hits_zs[h1_index];
 
         float dz_inverted = 1.f / (h1.z - h0.z);
-
-        //int first_h2 = hit_h2_candidates[2 * h1_index];
-        // PS: The following variable is removed, since it's never used
-        //last_h2 = hit_h2_candidates[2 * h1_index + 1];
-        //DEBUG << "first_h2 " << first_h2 << std::endl;
 
         // In case there be no h2 to process,
         // we can preemptively prevent further processing
         //inside_bounds &= first_h2 != -1;
 
         // Iterate in the third list of event.hits
-        // Tiled memory access on h2
-        for(size_t h2_element=0; h2_element<event.sensor_hits.nums[cur_sensor-4];++h2_element) {
-            size_t h2_index = h2_element + event.sensor_hits.starts[cur_sensor-4];
+        #pragma omp parallel for simd num_threads(HIT_LEVEL_PARALLELISM_SQRT) schedule(static)
+        for(size_t h2_element=0; h2_element < sensor_nums[cur_sensor-4]; ++h2_element) {
+            size_t h2_index = h2_element + sensor_starts[cur_sensor-4];
             struct Hit h2;
-            h2.x = event.hits.Xs[h2_index];
-            h2.y = event.hits.Ys[h2_index];
-            h2.z = event.hits.Zs[h2_index];
+            h2.x = hits_xs[h2_index];
+            h2.y = hits_ys[h2_index];
+            h2.z = hits_zs[h2_index];
 
             // Predictions of x and y for this hit
             const float z2_tz = (h2.z - h0.z) * dz_inverted;
