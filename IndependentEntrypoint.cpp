@@ -28,7 +28,7 @@
 void printUsage(char* argv[]){
     std::cerr << "Usage: "
         << argv[0]
-        << " -serial|-ocl"
+        << " -serial|-ocl|-openmp"
         << " -bin|-tex"
         << " <comma separated input filenames>"
         << std::endl;
@@ -206,6 +206,8 @@ int main(int argc, char *argv[])
 #else
         std::cout << "Please recompile with -DBUILD_OPENCL=ON" << std::endl;
 #endif
+    } else if (mode_opt.compare("-openmp") == 0) {
+        independent_execute(input, output, filenames, ExecMode::OpenMP, outtype);
     } else {
         std::cout << "Execution mode " << mode_opt << " not yet supported" << std::endl;
         printUsage(argv);

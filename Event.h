@@ -49,6 +49,7 @@ static float fitHitToTrack(const float tx, const float ty,
     const struct Hit* h0, const float h1_z, const struct Hit* h2);
 
 std::pair<float, float> findH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
+
 std::tuple<int, int, float> findBestFit(const Event& event, const Hit& h0,
                                         std::vector<bool>& hit_used, size_t cur_sensor,
                                         int first_h1, int last_h1);

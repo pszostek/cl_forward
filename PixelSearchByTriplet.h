@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-enum class ExecMode {Serial, TBB, OpenCl};
+enum class ExecMode {Serial, TBB, OpenCl, OpenMP};
 
 int independent_execute(
     const std::vector<std::vector<uint8_t> > & input,
@@ -44,6 +44,11 @@ int gpuPixelSearchByTripletInvocation(
  * @param output
  */
 int cpuPixelSearchByTripletSerialRun(
+        const std::vector<const std::vector<uint8_t>* > & input,
+        std::vector<std::vector<uint8_t> > & output,
+        std::vector<std::string> &filenames, OutType outtype);
+
+int cpuPixelSearchByTripletOpenMPRun(
         const std::vector<const std::vector<uint8_t>* > & input,
         std::vector<std::vector<uint8_t> > & output,
         std::vector<std::string> &filenames, OutType outtype);
