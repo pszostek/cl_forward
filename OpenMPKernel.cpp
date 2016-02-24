@@ -183,12 +183,16 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
      * This loop used to iterate to cur_sensors >= 2, but then a check was made whether
      * cur_sensor is greater or equal to four.
      */
+    #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM) shared(hit_candidates, hit_h2_candidates)
+    {
+    #pragma omp for schedule(static)
     for(unsigned int cur_sensor = event.number_of_sensors - 1; cur_sensor >= 4; --cur_sensor) {
         const int second_sensor = cur_sensor - 2;
         const bool process_h2_candidates = cur_sensor <= event.number_of_sensors - 3;
 
         std::pair<float, float> h2_boundaries[event.sensor_hits.nums[cur_sensor]];
 
+        #pragma omp simd
         for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
             const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
             // TODO: PS: these accesses have to be aligned to 64 bytes
@@ -203,6 +207,7 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
 
         // Sensor dependent calculations
         // Iterate in all hits in z0
+        #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM)
         for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
             assert(h0_element < event.sensor_hits.nums[cur_sensor]);
             const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
@@ -283,6 +288,7 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
             }
         }
     }
+    } // omp parallel
 }
 
 /**
