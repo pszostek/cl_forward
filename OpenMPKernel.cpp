@@ -682,6 +682,9 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
     }
 
     // Process the last bunch of track_to_follows
+    #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM*HIT_LEVEL_PARALLELISM)
+    {
+    #pragma omp for
     for (unsigned int ttf_element = last_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
 
         const int fulltrackno = tracks_to_follow[ttf_element];
@@ -691,14 +694,18 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
         // Here we are only interested in three-hit tracks,
         // to mark them as "doubtful"
         if (is_track) {
-            weak_tracks.push_back(trackno);
+            #pragma omp critical
+            {
+                weak_tracks.push_back(trackno);
+            }
             ASSERT(weak_tracks.size() < number_of_hits);
         }
-    }
+    } // omp for
 
     // Compute the three-hit tracks left
-    for (const auto& weak_track: weak_tracks) {
-
+    #pragma omp for
+    for (unsigned weak_track_idx=0; weak_track_idx<weak_tracks.size(); ++weak_track_idx) {
+        auto& weak_track = weak_tracks[weak_track_idx];
         // Load the tracks from the tracklets
         const struct Track t = tracklets[weak_track];
 
@@ -708,9 +715,12 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
             !hit_used[t.hits[1]] &&
             !hit_used[t.hits[2]]) {
             ASSERT(trackno < MAX_TRACKS)
-            tracks.push_back(t);
+            #pragma omp critical
+            {
+                tracks.push_back(t);
+            }
         }
-    }
-
+    } // omp for
+    } // omp parallel
     return tracks;
 }
