@@ -58,11 +58,12 @@ std::vector<Track> serialSearchByTriplets(const Event&);
 
 // OMP counterparts
 
-void OMPFillCandidates(const Event&, CandidatesMap& hit_candidates,
-    CandidatesMap& hit_h2_candidates);
 
-void OMPTrackCreation(const Event&, size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
-    std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
+void OMPFillCandidates(const Event&, std::pair<int, int> hit_candidates[],
+    std::pair<int, int> hit_h2_candidates[]);
+
+void OMPTrackCreation(const Event&, size_t cur_sensor, std::pair<int, int> hit_candidates[], int h0_index,
+    std::vector<bool>& hit_used,std::pair<int, int> hit_h2_candidates[],
     std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow);
 
 void OMPTrackForwarding(const Event&, std::vector<bool>& hit_used,
@@ -74,11 +75,12 @@ void OMPTrackForwarding(const Event&, std::vector<bool>& hit_used,
 static float OMPFitHitToTrack(const float tx, const float ty,
     const struct Hit* h0, const float h1_z, const struct Hit* h2);
 
+
 std::pair<float, float> OMPFindH2Boundaries(const Event& event, Hit h0, unsigned int cur_sensor, unsigned int second_sensor);
+
 std::tuple<int, int, float> OMPFindBestFit(const Event& event, const Hit& h0,
                                         const std::vector<bool>& hit_used, const size_t cur_sensor,
                                         int first_h1, int last_h1);
-
 
 std::vector<Track> OMPSearchByTriplets(const Event&);
 

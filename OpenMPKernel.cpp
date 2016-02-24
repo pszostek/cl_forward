@@ -163,8 +163,9 @@ float OMPFitHitToTrack(const float tx, const float ty,
 */
 
 // this guy should return <hit_candidates, hit_h2_candidates>
-void OMPFillCandidates(const Event& event, CandidatesMap& hit_candidates,
-        CandidatesMap& hit_h2_candidates) {
+
+void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
+        std::pair<int, int> hit_h2_candidates[]) {
     /*
      * This loop used to iterate to cur_sensors >= 2, but then a check was made whether
      * cur_sensor is greater or equal to four.
@@ -443,8 +444,9 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
 * @param tracks_to_follow
 */
 
-void OMPTrackCreation(const Event& event, const size_t cur_sensor, CandidatesMap& hit_candidates, int h0_index,
-        std::vector<bool>& hit_used, CandidatesMap& hit_h2_candidates,
+
+void OMPTrackCreation(const Event& event, const size_t cur_sensor, std::pair<int, int> hit_candidates[], int h0_index,
+        std::vector<bool>& hit_used, std::pair<int, int> hit_h2_candidates[],
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
     //DEBUG << "OMPTrackCreation: " << h0_index << std::endl;
@@ -533,8 +535,8 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
     // Per side datatypes
     //const int hit_offset = dev_hit_offsets[event_number];
     std::vector<bool> hit_used = std::vector<bool>(event.number_of_hits, false);
-    CandidatesMap hit_candidates;
-    CandidatesMap hit_h2_candidates;
+    std::pair<int, int> hit_candidates[event.number_of_hits];
+    std::pair<int, int> hit_h2_candidates[event.number_of_hits];
 
     //std::vector<int> tracks_to_follow(TTF_MODULO, 0);
     std::vector<int> tracks_to_follow;
