@@ -56,6 +56,7 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
         //inside_bounds &= first_h2 != -1;
 
         // Iterate in the third list of event.hits
+        // PS: this loop *GETS VECTORIZED*
         #pragma omp parallel for simd num_threads(HIT_LEVEL_PARALLELISM_SQRT) schedule(static)
         for(size_t h2_element=0; h2_element < sensor_nums[cur_sensor-4]; ++h2_element) {
             size_t h2_index = h2_element + sensor_starts[cur_sensor-4];
@@ -89,6 +90,7 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
 }
 
 
+// PS: this function *GETS VECTORIZED*
 #pragma omp declare simd notinbranch
 void OMPFindH2Boundaries(const int* __restrict__ sensor_Zs,
     const float h0_x, const float h0_z, const unsigned int cur_sensor,
@@ -171,6 +173,7 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
 
             std::pair<float, float> h2_boundaries[event.sensor_hits.nums[cur_sensor]];
 
+            // PS: this loop *GETS VECTORIZED*
             #pragma omp simd
             for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
                 const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
