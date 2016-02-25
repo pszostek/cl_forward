@@ -164,109 +164,109 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
      */
     #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM) shared(hit_candidates, hit_h2_candidates)
     {
-    #pragma omp for schedule(static)
-    for(unsigned int cur_sensor = event.number_of_sensors - 1; cur_sensor >= 4; --cur_sensor) {
-        const int second_sensor = cur_sensor - 2;
-        const bool process_h2_candidates = cur_sensor <= event.number_of_sensors - 3;
+        #pragma omp for schedule(static)
+        for(unsigned int cur_sensor = event.number_of_sensors - 1; cur_sensor >= 4; --cur_sensor) {
+            const int second_sensor = cur_sensor - 2;
+            const bool process_h2_candidates = cur_sensor <= event.number_of_sensors - 3;
 
-        std::pair<float, float> h2_boundaries[event.sensor_hits.nums[cur_sensor]];
+            std::pair<float, float> h2_boundaries[event.sensor_hits.nums[cur_sensor]];
 
-        #pragma omp simd
-        for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
-            const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
-            // TODO: PS: these accesses have to be aligned to 64 bytes
-            const float h0_x = event.hits.Xs[h0_index];
-            const float h0_z = event.hits.Zs[h0_index];
-            float xmin_h2, xmax_h2;
-            OMPFindH2Boundaries(event.sensor_Zs, h0_x, h0_z, cur_sensor, second_sensor, &xmin_h2, &xmax_h2);
-            h2_boundaries[h0_element].first = xmin_h2;
-            h2_boundaries[h0_element].second = xmax_h2;
+            #pragma omp simd
+            for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
+                const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
+                // TODO: PS: these accesses have to be aligned to 64 bytes
+                const float h0_x = event.hits.Xs[h0_index];
+                const float h0_z = event.hits.Zs[h0_index];
+                float xmin_h2, xmax_h2;
+                OMPFindH2Boundaries(event.sensor_Zs, h0_x, h0_z, cur_sensor, second_sensor, &xmin_h2, &xmax_h2);
+                h2_boundaries[h0_element].first = xmin_h2;
+                h2_boundaries[h0_element].second = xmax_h2;
 
+            }
+
+            // Sensor dependent calculations
+            // Iterate in all hits in z0
+            #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM)
+            for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
+                assert(h0_element < event.sensor_hits.nums[cur_sensor]);
+                const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
+                struct Hit h0;
+                h0.x = event.hits.Xs[h0_index];
+                h0.z = event.hits.Zs[h0_index];
+                const int hitstarts_s2 = event.sensor_hits.starts[second_sensor];
+                const int hitnums_s2 = event.sensor_hits.nums[second_sensor];
+
+                float xmin_h2, xmax_h2;
+                std::tie(xmin_h2, xmax_h2) =  h2_boundaries[h0_element];
+
+                bool first_h1_found = false, last_h1_found = false;
+                bool first_h2_found = false, last_h2_found = false;
+
+                // Iterate in all hits in z1
+                for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
+                    int h1_index = hitstarts_s2 + h1_element;
+                    struct Hit h1;
+                    h1.x = event.hits.Xs[h1_index];
+                    h1.z = event.hits.Zs[h1_index];
+
+                    if (!last_h1_found) {
+                        // Check if h0 and h1 are compatible
+                        const float h_dist = std::abs(h1.z - h0.z);
+                        const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
+                        const bool tol_condition = std::abs(h1.x - h0.x) < dxmax;
+
+                        // Find the first one
+                        if (!first_h1_found && tol_condition) {
+                            ASSERT(2 * h0_index < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
+
+                            hit_candidates[h0_index].first = h1_index;
+                            first_h1_found = true;
+                        }
+                        // The last one, only if the first one has already been found
+                        else if (first_h1_found && !tol_condition) {
+                            ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
+
+                            hit_candidates[h0_index].second = h1_index;
+                            last_h1_found = true;
+                        }
+                    }
+
+                    if (process_h2_candidates && !last_h2_found) {
+                        if (!first_h2_found && h1.x > xmin_h2) {
+                            ASSERT(2 * h0_index < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
+
+                            hit_h2_candidates[h0_index].first = h1_index;
+                            first_h2_found = true;
+                        }
+                        else if (first_h2_found && h1.x > xmax_h2) {
+                            ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
+
+                            hit_h2_candidates[h0_index].second = h1_index;
+                            last_h2_found = true;
+                        }
+                    }
+
+                    if (last_h1_found &&
+                        (!process_h2_candidates || last_h2_found)) {
+                        break;
+                    }
+                }
+
+                // Note: If first is not found, then both should be -1
+                // and there wouldn't be any iteration
+                if (first_h1_found && !last_h1_found) {
+                    ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
+
+                    hit_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
+                }
+
+                if (process_h2_candidates && first_h2_found && !last_h2_found) {
+                    ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
+
+                    hit_h2_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
+                }
+            }
         }
-
-        // Sensor dependent calculations
-        // Iterate in all hits in z0
-        #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM)
-        for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
-            assert(h0_element < event.sensor_hits.nums[cur_sensor]);
-            const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
-            struct Hit h0;
-            h0.x = event.hits.Xs[h0_index];
-            h0.z = event.hits.Zs[h0_index];
-            const int hitstarts_s2 = event.sensor_hits.starts[second_sensor];
-            const int hitnums_s2 = event.sensor_hits.nums[second_sensor];
-
-            float xmin_h2, xmax_h2;
-            std::tie(xmin_h2, xmax_h2) =  h2_boundaries[h0_element];
-
-            bool first_h1_found = false, last_h1_found = false;
-            bool first_h2_found = false, last_h2_found = false;
-
-            // Iterate in all hits in z1
-            for (int h1_element=0; h1_element<hitnums_s2; ++h1_element) {
-                int h1_index = hitstarts_s2 + h1_element;
-                struct Hit h1;
-                h1.x = event.hits.Xs[h1_index];
-                h1.z = event.hits.Zs[h1_index];
-
-                if (!last_h1_found) {
-                    // Check if h0 and h1 are compatible
-                    const float h_dist = std::abs(h1.z - h0.z);
-                    const float dxmax = PARAM_MAXXSLOPE_CANDIDATES * h_dist;
-                    const bool tol_condition = std::abs(h1.x - h0.x) < dxmax;
-
-                    // Find the first one
-                    if (!first_h1_found && tol_condition) {
-                        ASSERT(2 * h0_index < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
-
-                        hit_candidates[h0_index].first = h1_index;
-                        first_h1_found = true;
-                    }
-                    // The last one, only if the first one has already been found
-                    else if (first_h1_found && !tol_condition) {
-                        ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
-
-                        hit_candidates[h0_index].second = h1_index;
-                        last_h1_found = true;
-                    }
-                }
-
-                if (process_h2_candidates && !last_h2_found) {
-                    if (!first_h2_found && h1.x > xmin_h2) {
-                        ASSERT(2 * h0_index < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
-
-                        hit_h2_candidates[h0_index].first = h1_index;
-                        first_h2_found = true;
-                    }
-                    else if (first_h2_found && h1.x > xmax_h2) {
-                        ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
-
-                        hit_h2_candidates[h0_index].second = h1_index;
-                        last_h2_found = true;
-                    }
-                }
-
-                if (last_h1_found &&
-                    (!process_h2_candidates || last_h2_found)) {
-                    break;
-                }
-            }
-
-            // Note: If first is not found, then both should be -1
-            // and there wouldn't be any iteration
-            if (first_h1_found && !last_h1_found) {
-                ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
-
-                hit_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
-            }
-
-            if (process_h2_candidates && first_h2_found && !last_h2_found) {
-                ASSERT(2 * h0_index + 1 < 2 * (event.sensor_hits.starts[number_of_sensors-1] + event.sensor_hits.nums[number_of_sensors-1]))
-
-                hit_h2_candidates[h0_index].second = hitstarts_s2 + hitnums_s2;
-            }
-        }
-    }
     } // omp parallel
 }
 
@@ -525,43 +525,43 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
     // Process the last bunch of track_to_follows
     #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM*HIT_LEVEL_PARALLELISM)
     {
-    #pragma omp for
-    for (unsigned int ttf_element = last_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
+        #pragma omp for
+        for (unsigned int ttf_element = last_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
 
-        const int fulltrackno = tracks_to_follow[ttf_element];
-        const bool is_track = fulltrackno & 0x80000000;
-        const int trackno = fulltrackno & 0x0FFFFFFF;
+            const int fulltrackno = tracks_to_follow[ttf_element];
+            const bool is_track = fulltrackno & 0x80000000;
+            const int trackno = fulltrackno & 0x0FFFFFFF;
 
-        // Here we are only interested in three-hit tracks,
-        // to mark them as "doubtful"
-        if (is_track) {
-            #pragma omp critical
-            {
-                weak_tracks.push_back(trackno);
+            // Here we are only interested in three-hit tracks,
+            // to mark them as "doubtful"
+            if (is_track) {
+                #pragma omp critical
+                {
+                    weak_tracks.push_back(trackno);
+                }
+                ASSERT(weak_tracks.size() < number_of_hits);
             }
-            ASSERT(weak_tracks.size() < number_of_hits);
-        }
-    } // omp for
+        } // omp for
 
-    // Compute the three-hit tracks left
-    #pragma omp for
-    for (unsigned weak_track_idx=0; weak_track_idx<weak_tracks.size(); ++weak_track_idx) {
-        auto& weak_track = weak_tracks[weak_track_idx];
-        // Load the tracks from the tracklets
-        const struct Track t = tracklets[weak_track];
+        // Compute the three-hit tracks left
+        #pragma omp for
+        for (unsigned weak_track_idx=0; weak_track_idx<weak_tracks.size(); ++weak_track_idx) {
+            auto& weak_track = weak_tracks[weak_track_idx];
+            // Load the tracks from the tracklets
+            const struct Track t = tracklets[weak_track];
 
-        // Store them in the tracks bag iff they
-        // are made out of three unused hits
-        if (!hit_used[t.hits[0]] &&
-            !hit_used[t.hits[1]] &&
-            !hit_used[t.hits[2]]) {
-            ASSERT(trackno < MAX_TRACKS)
-            #pragma omp critical
-            {
-                tracks.push_back(t);
+            // Store them in the tracks bag iff they
+            // are made out of three unused hits
+            if (!hit_used[t.hits[0]] &&
+                !hit_used[t.hits[1]] &&
+                !hit_used[t.hits[2]]) {
+                ASSERT(trackno < MAX_TRACKS)
+                #pragma omp critical
+                {
+                    tracks.push_back(t);
+                }
             }
-        }
-    } // omp for
+        } // omp for
     } // omp parallel
     return tracks;
 }
