@@ -122,15 +122,7 @@ void OMPFindH2Boundaries(const int* __restrict__ sensor_Zs,
 * @details In case the tolerances constraints are met,
 *          returns the chi2 weight of the track. Otherwise,
 *          returns MAX_FLOAT.
-*
-* @param tx
-* @param ty
-* @param h0
-* @param h1_z
-* @param h2
-* @return
 */
-
 
 #pragma omp declare simd notinbranch
 float OMPFitHitToTrack(const float tx, const float ty,
@@ -140,19 +132,16 @@ float OMPFitHitToTrack(const float tx, const float ty,
     const float dz = h2->z - h0->z;
     const float x_prediction = h0->x + tx * dz;
     const float dx = std::abs(x_prediction - h2->x);
-    //const bool tolx_condition = dx < PARAM_TOLERANCE;
 
     const float y_prediction = h0->y + ty * dz;
     const float dy = std::abs(y_prediction - h2->y);
-    //const bool toly_condition = dy < PARAM_TOLERANCE;
 
-    // Scatter - Updated to last PrPixel
     const float scatterNum = (dx * dx) + (dy * dy);
     const float scatterDenom = 1.f / (h2->z - h1_z);
     const float scatter = scatterNum * scatterDenom * scatterDenom;
 
     const bool scatter_condition = scatter < MAX_SCATTER;
-    //const bool condition = tolx_condition && toly_condition && scatter_condition;
+
     if (dx < PARAM_TOLERANCE &&
         dy < PARAM_TOLERANCE &&
         scatter < MAX_SCATTER)
@@ -161,21 +150,11 @@ float OMPFitHitToTrack(const float tx, const float ty,
         return MAX_FLOAT;
 }
 
+
 /**
 * @brief Fills dev_hit_candidates.
 *
-* @param hit_candidates
-* @param hit_h2_candidates
-* @param number_of_sensors
-* @param sensor_hitStarts
-* @param sensor_hitNums
-* @param hit_Xs
-* @param hit_Ys
-* @param hit_Zs
-* @param sensor_Zs
 */
-
-// this guy should return <hit_candidates, hit_h2_candidates>
 
 void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
         std::pair<int, int> hit_h2_candidates[]) {
@@ -294,18 +273,6 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
 /**
 * @brief Performs the track forwarding.
 *
-* @param hit_Xs
-* @param hit_Ys
-* @param hit_Zs
-* @param hit_used
-* @param sensor_data
-* @param diff_ttf
-* @param tracks_to_follow
-* @param weak_tracks
-* @param prev_ttf
-* @param tracklets
-* @param tracks
-* @param number_of_hits
 */
 
 void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
@@ -319,15 +286,11 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
     #pragma omp parallel for num_threads(HIT_LEVEL_PARALLELISM) schedule(static)
     for (unsigned ttf_index = prev_ttf; ttf_index < tracks_to_follow.size() ; ++ttf_index) {
 
-        // These variables need to go here, shared memory and scope requirements
         unsigned int trackno, skipped_modules;
         unsigned int best_hit_h2 = 0;
         struct Track t;
         struct Hit h0;
-        // The logic is broken in two parts for shared memory loading
-        //DEBUG << "ttf_el: " << ttf_element << " diff_ttf " << diff_ttf << std::endl;
 
-        // OA: tracks_to_follow is limited to TTF_MODULO elements.
         unsigned fulltrackno = tracks_to_follow[ttf_index];
         // OA: fulltrackno has not only the index into tracks_pointer encoded, but also:
         // bit 31: track_flag is set in the OMPTrackCreation function
@@ -374,9 +337,6 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         // OA: once the shared mem goes away much of the logic here becomes redundant.
         // TODO: discuss this - I'm not entirely sure, but a simple loop k=0:hitNums
         // could be enugh
-        // Iterate in the third list of hits
-        // Tiled memory access on h2
-        // Only load for get_local_id(1) == 0
         float best_fit = MAX_FLOAT;
 
         for (size_t h2_element=0; h2_element < event.sensor_hits.nums[cur_sensor-4]; ++h2_element) {
@@ -434,8 +394,6 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
             tracks[trackno] = t;
 
             // Add the tracks to the bag of tracks to_follow
-            // XXX OA: no more atomic_add needed
-            //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
             #pragma omp critical
             new_tracks_to_follow.push_back(trackno);
         }
@@ -465,35 +423,17 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
                             new_tracks_to_follow.begin(),
                             new_tracks_to_follow.end());
 }
+
+
 /**
 * @brief Track Creation
 *
-* @param hit_Xs
-* @param hit_Ys
-* @param hit_Zs
-* @param sensor_data
-* @param hit_candidates
-* @param max_numhits_to_process
-* @param sh_hit_x
-* @param sh_hit_y
-* @param sh_hit_z
-* @param sh_hit_process
-* @param hit_used
-* @param hit_h2_candidates
-* @param blockDim_sh_hit
-* @param best_fits
-* @param tracklets_insertPointer
-* @param ttf_insertPointer
-* @param tracklets
-* @param tracks_to_follow
 */
-
 
 void OMPTrackCreation(const Event& event, const size_t cur_sensor, std::pair<int, int> hit_candidates[], int h0_index,
         std::vector<bool>& hit_used, std::pair<int, int> hit_h2_candidates[],
         std::vector<Track>& tracklets, std::vector<int>& tracks_to_follow) {
 
-    //DEBUG << "OMPTrackCreation: " << h0_index << std::endl;
     // Track creation starts
     struct Hit h0 = {event.hits.Xs[h0_index], event.hits.Ys[h0_index], event.hits.Zs[h0_index]};
     unsigned int best_hit_h1, best_hit_h2;
@@ -512,7 +452,6 @@ void OMPTrackCreation(const Event& event, const size_t cur_sensor, std::pair<int
         // Fill in track information
 
         // Add the track to the bag of tracks
-        // TODO: fix this in a clean way
         Track new_tracklet = {3, {static_cast<unsigned int>(h0_index), best_hit_h1, best_hit_h2}};
         tracklets.push_back(new_tracklet);
         unsigned int new_tracklet_idx = tracklets.size()-1;
@@ -521,7 +460,6 @@ void OMPTrackCreation(const Event& event, const size_t cur_sensor, std::pair<int
         // Note: The first bit flag marks this is a tracklet (hitsNum == 3),
         // and hence it is stored in tracklets
         tracks_to_follow.push_back(0x80000000 | new_tracklet_idx);
-        //DEBUG << "updated tracks_to_follow " << new_tracklet_idx << std::endl;
     }
 }
 
@@ -538,53 +476,19 @@ void OMPTrackCreation(const Event& event, const size_t cur_sensor, std::pair<int
 *          The algorithm consists in two stages: Track following, and seeding. In each step [iteration],
 *          the track following is performed first, hits are marked as used, and then the seeding is performed,
 *          requiring the first two hits in the triplet to be unused.
-*
-* @param dev_tracks
-* @param input The data of one event
-* @param dev_tracks_to_follow
-* @param dev_hit_used
-* @param dev_atomicsStorage
-* @param dev_tracklets
-* @param dev_weak_tracks
-* @param dev_event_offsets
-* @param dev_hit_candidates
 */
 std::vector<Track> OMPSearchByTriplets(const Event& event) {
 
-
-    // Data initialization
-    // Each event is treated with two blocks, one for each side.
-    // OA: We treat one event at a time
-    //const int event_number = get_group_id(0);
-    // OA: the notion of blocks is not needed anymore.
-    //const int events_under_process = get_num_groups(0);
-    //const int tracks_offset = event_number * MAX_TRACKS;
-    //const int blockDim_product = get_local_size(0) * get_local_size(1);
-
-    // Pointers to data within the event
-
-
-    //struct Track* const tracks = new Track[MAX_TRACKS];
     std::vector<struct Track> tracks;
     tracks.reserve(MAX_TRACKS);
     DEBUG << "number of sensors: " << event.number_of_sensors << std::endl;
     DEBUG << "number of hits: " << event.number_of_hits << std::endl;
-    // Per event datatypes
-    // OA: we pass a tracks pointer to be used in here.
-    //__global struct Track* tracks = dev_tracks + tracks_offset;
-    // OA: this is not needed in the serial version as atomic.
-    //__global unsigned int* const tracks_insertPointer = (__global unsigned int*) dev_atomicsStorage + event_number;
-    // OA: instead we allocate it locally and pass a reference.
 
-    // Per side datatypes
-    //const int hit_offset = dev_hit_offsets[event_number];
     std::vector<bool> hit_used = std::vector<bool>(event.number_of_hits, false);
     std::pair<int, int> hit_candidates[event.number_of_hits];
     std::pair<int, int> hit_h2_candidates[event.number_of_hits];
 
-    //std::vector<int> tracks_to_follow(TTF_MODULO, 0);
     std::vector<int> tracks_to_follow;
-    //int* tracks_to_follow = new int[TTF_MODULO];
 
     std::vector<int> weak_tracks;
     weak_tracks.reserve(event.number_of_hits);
@@ -592,82 +496,19 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
     std::vector<Track> tracklets;
     tracklets.reserve(event.number_of_hits);
 
-    // Initialize variables according to event number and sensor side
-    // Insert pointers (atomics)
-    // OA: I don't think those are needed anymore
-    //const int ip_shift = events_under_process + event_number * NUM_ATOMICS;
-    //__global int* const weaktracks_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 1;
-    //__global int* const tracklets_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 2;
 
-    // OA: This was an atomic counter to be able to append to the global array tracks_to_follow while
-    // processing several envents simultaneously - this will be needed later again probably
-    //int* const ttf_insertPointer = (__global int*) dev_atomicsStorage + ip_shift + 3;
-    //int ttf_insertPointer = 0; // OA: instead we jsut keep a simple counter for book keeping
-    //__global int* const sh_hit_lastPointer = (__global int*) dev_atomicsStorage + ip_shift + 4;
-    //__global int* const max_numhits_to_process = (__global int*) dev_atomicsStorage + ip_shift + 5;
-
-    // The fun begins
-    // XXX OA: what's this for?
-    // PS: Removed since never used
-    // int sh_hit_process [NUMTHREADS_X];
-
-    // OA: This is used for coordinating between OpenCL threads within a group.
-    // Not needed anymore
-    //const int cond_sh_hit_mult = min((int) get_local_size(1), SH_HIT_MULT);
-    //const int blockDim_sh_hit = NUMTHREADS_X * cond_sh_hit_mult;
     OMPFillCandidates(event, hit_candidates, hit_h2_candidates);
-    /*for (int i = 0; i < 2*number_of_hits; ++i)
-        DEBUG << hit_h2_candidates[i] << ", ";
-    DEBUG << std::endl;*/
-    // Deal with odd or even in the same thread
-    // Prepare s1 and s2 for the first iteration
     unsigned int prev_ttf, last_ttf = 0;
 
     for (unsigned int cur_sensor = event.number_of_sensors-1; cur_sensor >= 4; --cur_sensor) {
 
-        // OA: that's not needed anymore
-        //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
-
-        // Iterate in sensors
-        // Load in shared
-        // XXX OA: I don't see the purpose of this. except for shared mem maybe but then
-        // why is it not in an ifdef
-        /*
-        if (get_local_id(0) < 6 && get_local_id(1) == 0) {
-            const int sensor_number = cur_sensor - (get_local_id(0) % 3) * 2;
-            __global const int* const sensor_pointer = get_local_id(0) < 3 ? sensor_hitStarts : sensor_hitNums;
-
-            sensor_data[get_local_id(0)] = sensor_pointer[sensor_number];
-        }
-        else if (get_local_id(0) == 7 && get_local_id(1) == 0) {
-            max_numhits_to_process[0] = 0;
-        }
-        */
-
-        // We need this barrier if we are not using shared memory for the hits.
-        // Removing shmem for hits removes the barriers in OMPTrackForwarding.
-        // Otherwise the three statements from before could be executed before / after updating
-        // the values inside OMPTrackForwarding
         prev_ttf = last_ttf;
         last_ttf = tracks_to_follow.size();
-        //DEBUG << "diff_ttf: " << diff_ttf << std::endl;
-        //DEBUG << "prev_ttf: " << prev_ttf << std::endl;
-        //DEBUG << "last_ttf: " << last_ttf << std::endl;
-        //barrier(CLK_GLOBAL_MEM_FENCE | CLK_LOCAL_MEM_FENCE);
 
-        // 2a. Track forwarding
         OMPTrackForwarding(event, hit_used,
             cur_sensor, tracks_to_follow, weak_tracks, prev_ttf,
             tracklets, tracks);
 
-        // Iterate in all hits for current sensor
-        // 2a. Seeding - Track creation
-
-        // Pre-seeding
-        // Get the hits we are going to iterate onto in sh_hit_process,
-        // in groups of max NUMTHREADS_X
-
-        //DEBUG << "sensor_data[0]: " << sensor_data[0] << std::endl;
         for(int h0_element = 0;
             h0_element < event.sensor_hits.nums[cur_sensor];
             ++h0_element) {
