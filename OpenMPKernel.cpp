@@ -3,10 +3,13 @@
 #include <cmath>
 #include <cassert>
 #include <utility>
+#include <algorithm>
+#include <iterator>
 #include "Logger.h"
 #include "KernelDefinitions.h"
 #include "SerialKernel.h"
 #include "Definitions.h"
+#include <omp.h>
 
 
 /* This methods takes a h0 event.hits and looks for the best h1 and h2, somehow.
@@ -36,9 +39,14 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
     const float h_dist = std::abs(s1_z - h0.z);
     const float dymax = PARAM_MAXYSLOPE * h_dist;
 
-    const unsigned HIT_LEVEL_PARALLELISM_SQRT = sqrt(HIT_LEVEL_PARALLELISM);
 
-    #pragma omp parallel for num_threads(HIT_LEVEL_PARALLELISM_SQRT) schedule(static)
+    #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM) private(h1)
+    {
+    unsigned int priv_best_hit_h1 = 0;
+    unsigned int priv_best_hit_h2 = 0;
+    float priv_best_fit = MAX_FLOAT;
+
+    #pragma omp for schedule(dynamic)
     for (unsigned int h1_index=first_h1; h1_index < last_h1; ++h1_index) {
         bool is_h1_used = hit_used[h1_index];
 
@@ -57,7 +65,7 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
 
         // Iterate in the third list of event.hits
         // PS: this loop *GETS VECTORIZED*
-        #pragma omp parallel for simd num_threads(HIT_LEVEL_PARALLELISM_SQRT) schedule(static)
+        #pragma omp simd
         for(size_t h2_element=0; h2_element < sensor_nums[cur_sensor-4]; ++h2_element) {
             size_t h2_index = h2_element + sensor_starts[cur_sensor-4];
             struct Hit h2;
@@ -78,14 +86,28 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
                 const float scatterNum = (dx * dx) + (dy * dy);
                 const float scatterDenom = 1.f / (h2.z - h1.z);
                 const float scatter = scatterNum * scatterDenom * scatterDenom;
-                if(scatter < MAX_SCATTER && scatter < best_fit) {
-                    best_fit = scatter;
-                    best_hit_h1 = h1_index;
-                    best_hit_h2 = h2_index;
+                if(scatter < MAX_SCATTER && scatter < priv_best_fit) {
+                    priv_best_fit = scatter;
+                    priv_best_hit_h1 = h1_index;
+                    priv_best_hit_h2 = h2_index;
                 }
             }
         }
+
     }
+    #pragma omp flush(best_fit)
+    if(priv_best_fit < best_fit) {
+        #pragma omp critical
+        {
+            if(priv_best_fit < best_fit) {
+                best_fit = priv_best_fit;
+                best_hit_h1 = priv_best_hit_h1;
+                best_hit_h2 = priv_best_hit_h2;
+            } //if
+        } // omp critical
+    } //if
+    }
+
     return std::make_tuple(best_hit_h1, best_hit_h2, best_fit);
 }
 
