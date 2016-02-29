@@ -570,7 +570,7 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
     omp_init_lock(&weak_tracks_lock);
     omp_init_lock(&tracks_lock);
     // Process the last bunch of track_to_follows
-    #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM*HIT_LEVEL_PARALLELISM)
+    #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM)
     {
         #pragma omp for
         for (unsigned int ttf_element = last_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
