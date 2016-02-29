@@ -221,7 +221,7 @@ int cpuPixelSearchByTripletOpenMPRun(
             const std::vector<uint8_t>* event_input = input[input_index];
             Event* event = new Event((uint8_t*) &(*event_input)[0], event_input->size(), filenames[input_index]);
 
-            std::vector<Track> tracks = serialSearchByTriplets(*event);
+            std::vector<Track> tracks = OMPSearchByTriplets(*event);
             DEBUG << "Done. Found " << tracks.size() <<" tracks." << std::endl;
             // events.push_back(std::move(event));
             // event_tracks.push_back(std::move(tracks));
