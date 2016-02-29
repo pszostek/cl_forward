@@ -307,6 +307,12 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         std::vector<struct Track>& tracks) {
 
     std::vector<int> new_tracks_to_follow;
+    omp_lock_t tracks_lock, new_ttf_lock, weak_tracks_lock, hit_used_lock;
+
+    omp_init_lock(&tracks_lock);
+    omp_init_lock(&new_ttf_lock);
+    omp_init_lock(&weak_tracks_lock);
+    omp_init_lock(&hit_used_lock);
 
     #pragma omp parallel for num_threads(HIT_LEVEL_PARALLELISM) schedule(static)
     for (unsigned ttf_index = prev_ttf; ttf_index < tracks_to_follow.size() ; ++ttf_index) {
@@ -382,8 +388,9 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         if (best_fit != MAX_FLOAT) {
             // Mark h2 as used
             ASSERT(best_hit_h2 < number_of_hits)
-            #pragma omp critical
+            omp_set_lock(&hit_used_lock);
             hit_used[best_hit_h2] = true;
+            omp_unset_lock(&hit_used_lock);
 
             // Update the tracks to follow, we'll have to follow up
             // this track on the next iteration :)
@@ -397,30 +404,34 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
                 ASSERT(t.hits[2] < number_of_hits)
 
                 // Also mark the first three as used
+                omp_set_lock(&hit_used_lock);
                 hit_used[t.hits[0]] = true;
                 hit_used[t.hits[1]] = true;
                 hit_used[t.hits[2]] = true;
+                omp_unset_lock(&hit_used_lock);
 
                 // If it is a track made out of less than or equal than 4 hits,
                 // we have to allocate it in the tracks vector
                 // XXX OA: no more atomic_add needed
 
-                #pragma omp critical
-                {
-                    trackno = tracks.size();
-                    // XXX PS: without this spell the whole thing doesnt work..
-                    tracks.emplace_back();
-                }
+
+                omp_set_lock(&tracks_lock);
+                trackno = tracks.size();
+                // XXX PS: without this spell the whole thing doesnt work..
+                tracks.emplace_back();
+                omp_unset_lock(&tracks_lock);
             }
 
             // Copy the track into tracks
             ASSERT(trackno < number_of_hits)
-            #pragma omp critical
+            omp_set_lock(&tracks_lock);
             tracks[trackno] = t;
+            omp_unset_lock(&tracks_lock);
 
+            omp_set_lock(&new_ttf_lock);
             // Add the tracks to the bag of tracks to_follow
-            #pragma omp critical
             new_tracks_to_follow.push_back(trackno);
+            omp_unset_lock(&new_ttf_lock);
         }
         // A track just skipped a module
         // We keep it for another round
@@ -430,16 +441,19 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
 
             // Add the tracks to the bag of tracks to_follow
             //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
-            #pragma omp critical
+            omp_set_lock(&new_ttf_lock);
             new_tracks_to_follow.push_back(trackno);
+            omp_unset_lock(&new_ttf_lock);
         }
         // If there are only three hits in this track,
         // mark it as "doubtful"
         else if (t.hitsNum == 3) {
             //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
-            #pragma omp critical
+
+            omp_set_lock(&weak_tracks_lock);
             weak_tracks.push_back(trackno);
             ASSERT(weak_tracks.size() < number_of_hits)
+            omp_unset_lock(&weak_tracks_lock);
         }
         // In the "else" case, we couldn't follow up the track,
         // so we won't be track following it anymore.
@@ -447,6 +461,11 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
     tracks_to_follow.insert(tracks_to_follow.end(),
                             new_tracks_to_follow.begin(),
                             new_tracks_to_follow.end());
+
+    omp_destroy_lock(&tracks_lock);
+    omp_destroy_lock(&new_ttf_lock);
+    omp_destroy_lock(&weak_tracks_lock);
+    omp_destroy_lock(&hit_used_lock);
 }
 
 
@@ -547,6 +566,9 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
         }
     }
 
+    omp_lock_t weak_tracks_lock, tracks_lock;
+    omp_init_lock(&weak_tracks_lock);
+    omp_init_lock(&tracks_lock);
     // Process the last bunch of track_to_follows
     #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM*HIT_LEVEL_PARALLELISM)
     {
@@ -560,11 +582,10 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
             // Here we are only interested in three-hit tracks,
             // to mark them as "doubtful"
             if (is_track) {
-                #pragma omp critical
-                {
-                    weak_tracks.push_back(trackno);
-                }
+                omp_set_lock(&weak_tracks_lock);
+                weak_tracks.push_back(trackno);
                 ASSERT(weak_tracks.size() < number_of_hits);
+                omp_unset_lock(&weak_tracks_lock);
             }
         } // omp for
 
@@ -581,12 +602,13 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
                 !hit_used[t.hits[1]] &&
                 !hit_used[t.hits[2]]) {
                 ASSERT(trackno < MAX_TRACKS)
-                #pragma omp critical
-                {
-                    tracks.push_back(t);
-                }
+                omp_set_lock(&tracks_lock);
+                tracks.push_back(t);
+                omp_unset_lock(&tracks_lock);
             }
         } // omp for
     } // omp parallel
+    omp_destroy_lock(&weak_tracks_lock);
+    omp_destroy_lock(&tracks_lock);
     return tracks;
 }
