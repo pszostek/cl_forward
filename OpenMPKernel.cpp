@@ -430,7 +430,6 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
 
                 // If it is a track made out of less than or equal than 4 hits,
                 // we have to allocate it in the tracks vector
-                // XXX OA: no more atomic_add needed
 
 
                 omp_set_lock(&tracks_lock);
@@ -458,7 +457,6 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
             trackno = ((skipped_modules + 1) << 28) | (fulltrackno & 0x8FFFFFFF);
 
             // Add the tracks to the bag of tracks to_follow
-            //const unsigned int ttfP = atomic_add(ttf_insertPointer, 1) % TTF_MODULO;
             omp_set_lock(&new_ttf_lock);
             new_tracks_to_follow.push_back(trackno);
             omp_unset_lock(&new_ttf_lock);
@@ -466,8 +464,6 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         // If there are only three hits in this track,
         // mark it as "doubtful"
         else if (t.hitsNum == 3) {
-            //const unsigned int weakP = atomic_add(weaktracks_insertPointer, 1);
-
             omp_set_lock(&weak_tracks_lock);
             weak_tracks.push_back(trackno);
             ASSERT(weak_tracks.size() < number_of_hits)
@@ -506,7 +502,6 @@ void OMPTrackCreation(const Event& event, const size_t cur_sensor, std::pair<int
     const int first_h1 = hit_candidates[h0_index].first;
     const int last_h1 = hit_candidates[h0_index].second;
 
-    // Only iterate max_numhits_to_process[0] iterations (with get_local_size(1) threads) :D :D :D
     std::tie(best_hit_h1, best_hit_h2, best_fit) = OMPFindBestFit(event, h0, hit_used, cur_sensor, first_h1, last_h1);
 
     if (best_fit < MAX_FLOAT) {
@@ -526,7 +521,7 @@ void OMPTrackCreation(const Event& event, const size_t cur_sensor, std::pair<int
 }
 
 /**
-* @brief Track following algorithm, loosely based on Pr/PrPixel.
+* @brief Track following algorithm, loosely based on Pr/PrPixela.
 * @details It should be simplistic in its design, as is the Pixel VELO problem
 *          Triplets are chosen based on a fit and forwarded using a typical track following algo.
 *          Ghosts are inherently out of the equation, as the algorithm considers all possible
