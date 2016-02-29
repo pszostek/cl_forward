@@ -369,17 +369,35 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         // TODO: discuss this - I'm not entirely sure, but a simple loop k=0:hitNums
         // could be enugh
         float best_fit = MAX_FLOAT;
+        #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM)
+        {
+        float priv_best_fit = MAX_FLOAT;
+        unsigned int priv_best_hit_h2 = 0; 
 
+        #pragma omp simd
         for (size_t h2_element=0; h2_element < event.sensor_hits.nums[cur_sensor-4]; ++h2_element) {
             size_t h2_index = h2_element + event.sensor_hits.starts[cur_sensor-4];
             struct Hit h2 = {event.hits.Xs[h2_index], event.hits.Ys[h2_index], event.hits.Zs[h2_index]};
 
             const float fit = OMPFitHitToTrack(tx, ty, &h0, h1_z, &h2);
 
-            if (fit < best_fit) {
-                best_fit = fit;
-                best_hit_h2 = h2_index;
+            if (fit < priv_best_fit) {
+                priv_best_fit = fit;
+                priv_best_hit_h2 = h2_index;
             }
+        }
+
+        #pragma omp flush(best_fit)
+        if(priv_best_fit < best_fit) {
+            #pragma omp critical
+            {
+                if(priv_best_fit < best_fit) {
+                    best_fit = priv_best_fit;
+                    best_hit_h2 = priv_best_hit_h2;
+                } //if
+            } // omp critical
+        } //if
+
         }
 
 
