@@ -39,14 +39,17 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
     const float h_dist = std::abs(s1_z - h0.z);
     const float dymax = PARAM_MAXYSLOPE * h_dist;
 
-
+#if(HIT_LEVEL_PARALLELISM != 0)
     #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM) private(h1)
     {
+#endif
     unsigned int priv_best_hit_h1 = 0;
     unsigned int priv_best_hit_h2 = 0;
     float priv_best_fit = MAX_FLOAT;
 
+#if(HIT_LEVEL_PARALLELISM != 0)
     #pragma omp for schedule(dynamic)
+#endif
     for (unsigned int h1_index=first_h1; h1_index < last_h1; ++h1_index) {
         bool is_h1_used = hit_used[h1_index];
 
@@ -95,6 +98,7 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
         }
 
     }
+#if(HIT_LEVEL_PARALLELISM != 0)
     #pragma omp flush(best_fit)
     if(priv_best_fit < best_fit) {
         #pragma omp critical
@@ -107,6 +111,11 @@ std::tuple<int, int, float> OMPFindBestFit(const Event& event,
         } // omp critical
     } //if
     }
+#else
+    best_fit = priv_best_fit;
+    best_hit_h1 = priv_best_hit_h1;
+    best_hit_h2 = priv_best_hit_h2;
+#endif
 
     return std::make_tuple(best_hit_h1, best_hit_h2, best_fit);
 }
@@ -186,9 +195,11 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
      * This loop used to iterate to cur_sensors >= 2, but then a check was made whether
      * cur_sensor is greater or equal to four.
      */
+#if(SENSOR_LEVEL_PARALLELISM != 0)
     #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM) shared(hit_candidates, hit_h2_candidates)
     {
         #pragma omp for schedule(static)
+#endif
         for(unsigned int cur_sensor = event.number_of_sensors - 1; cur_sensor >= 4; --cur_sensor) {
             const int second_sensor = cur_sensor - 2;
             const bool process_h2_candidates = cur_sensor <= event.number_of_sensors - 3;
@@ -211,7 +222,9 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
 
             // Sensor dependent calculations
             // Iterate in all hits in z0
+#if(HIT_LEVEL_PARALLELISM != 0)
             #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM)
+#endif
             for (int h0_element=0; h0_element < event.sensor_hits.nums[cur_sensor]; ++h0_element) {
                 assert(h0_element < event.sensor_hits.nums[cur_sensor]);
                 const int h0_index = event.sensor_hits.starts[cur_sensor] + h0_element;
@@ -292,7 +305,9 @@ void OMPFillCandidates(const Event& event, std::pair<int, int> hit_candidates[],
                 }
             }
         }
+#if(SENSOR_LEVEL_PARALLELISM != 0)
     } // omp parallel
+#endif
 }
 
 /**
@@ -307,6 +322,7 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         std::vector<struct Track>& tracks) {
 
     std::vector<int> new_tracks_to_follow;
+
     omp_lock_t tracks_lock, new_ttf_lock, weak_tracks_lock, hit_used_lock;
 
     omp_init_lock(&tracks_lock);
@@ -314,7 +330,9 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
     omp_init_lock(&weak_tracks_lock);
     omp_init_lock(&hit_used_lock);
 
+#if(HIT_LEVEL_PARALLELISM != 0)
     #pragma omp parallel for num_threads(HIT_LEVEL_PARALLELISM) schedule(static)
+#endif
     for (unsigned ttf_index = prev_ttf; ttf_index < tracks_to_follow.size() ; ++ttf_index) {
 
         unsigned int trackno, skipped_modules;
@@ -369,8 +387,10 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         // TODO: discuss this - I'm not entirely sure, but a simple loop k=0:hitNums
         // could be enugh
         float best_fit = MAX_FLOAT;
+#if(HIT_LEVEL_PARALLELISM != 0)
         #pragma omp parallel num_threads(HIT_LEVEL_PARALLELISM)
         {
+#endif
         float priv_best_fit = MAX_FLOAT;
         unsigned int priv_best_hit_h2 = 0; 
 
@@ -387,6 +407,7 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
             }
         }
 
+#if(HIT_LEVEL_PARALLELISM != 0)
         #pragma omp flush(best_fit)
         if(priv_best_fit < best_fit) {
             #pragma omp critical
@@ -397,8 +418,14 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
                 } //if
             } // omp critical
         } //if
+#else
+        best_fit = priv_best_fit;
+        best_hit_h2 = priv_best_hit_h2;
+#endif
 
+#if(HIT_LEVEL_PARALLELISM != 0)
         }
+#endif
 
 
         // We have a best fit!
@@ -406,6 +433,7 @@ void OMPTrackForwarding(const Event& event, std::vector<bool>& hit_used,
         if (best_fit != MAX_FLOAT) {
             // Mark h2 as used
             ASSERT(best_hit_h2 < number_of_hits)
+
             omp_set_lock(&hit_used_lock);
             hit_used[best_hit_h2] = true;
             omp_unset_lock(&hit_used_lock);
@@ -583,9 +611,11 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
     omp_init_lock(&weak_tracks_lock);
     omp_init_lock(&tracks_lock);
     // Process the last bunch of track_to_follows
+#if(SENSOR_LEVEL_PARALLELISM != 0)
     #pragma omp parallel num_threads(SENSOR_LEVEL_PARALLELISM)
     {
         #pragma omp for
+#endif
         for (unsigned int ttf_element = last_ttf; ttf_element< tracks_to_follow.size(); ++ttf_element) {
 
             const int fulltrackno = tracks_to_follow[ttf_element];
@@ -603,7 +633,9 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
         } // omp for
 
         // Compute the three-hit tracks left
+#if(SENSOR_LEVEL_PARALLELISM != 0)
         #pragma omp for
+#endif
         for (unsigned weak_track_idx=0; weak_track_idx<weak_tracks.size(); ++weak_track_idx) {
             auto& weak_track = weak_tracks[weak_track_idx];
             // Load the tracks from the tracklets
@@ -615,13 +647,20 @@ std::vector<Track> OMPSearchByTriplets(const Event& event) {
                 !hit_used[t.hits[1]] &&
                 !hit_used[t.hits[2]]) {
                 ASSERT(trackno < MAX_TRACKS)
+#if(SENSOR_LEVEL_PARALLELISM != 0)
                 omp_set_lock(&tracks_lock);
+#endif
                 tracks.push_back(t);
+#if(SENSOR_LEVEL_PARALLELISM != 0)
                 omp_unset_lock(&tracks_lock);
+#endif
             }
         } // omp for
+#if(SENSOR_LEVEL_PARALLELISM != 0)
     } // omp parallel
+
     omp_destroy_lock(&weak_tracks_lock);
     omp_destroy_lock(&tracks_lock);
+#endif
     return tracks;
 }

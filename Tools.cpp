@@ -51,8 +51,9 @@ void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input) {
   //this call is just to set h_no_sensors and number_of_sensors
   //setHPointersFromInput((uint8_t*) &(*startingEvent_input)[0], startingEvent_input->size(),
   //  number_of_sensors, number_of_hits, h_sensors_Zs, sensor_hits, hits);
-
+#if(EVENT_LEVEL_PARALLELISM != 0)
   #pragma omp parallel for num_threads(EVENT_LEVEL_PARALLELISM)
+#endif
   for (int i=0; i < number_of_input_files; ++i) {
     int number_of_sensors, number_of_hits;
     int *sensor_Zs;
@@ -66,11 +67,15 @@ void preorder_by_x(std::vector<const std::vector<uint8_t>* > & input) {
       number_of_sensors, number_of_hits, sensor_Zs, sensor_hits,
       hit_IDs, hits);
 
+#if(SENSOR_LEVEL_PARALLELISM != 0)
     #pragma omp parallel for num_threads(SENSOR_LEVEL_PARALLELISM) shared(acc_hitnums)
+#endif
     for (int j=0; j<number_of_sensors; j++) {
       const int hitnums = sensor_hits.nums[j];
       quicksort(hits.Xs, hits.Ys, hits.Zs, hit_IDs, acc_hitnums, acc_hitnums + hitnums - 1);
+#if(SENSOR_LEVEL_PARALLELISM != 0)
       #pragma omp critical
+#endif
       acc_hitnums += hitnums;
     }
   }
@@ -261,19 +266,27 @@ int findClosestModule(const int z, const std::map<int, int>& zhit_to_module){
 }
 
 void quicksort (float* a, float* b, float* c, unsigned int* d, int start, int end) {
+#if(SENSOR_LEVEL_PARALLELISM != 0)
     #pragma omp parallel
     {
         #pragma omp single
         {
+#endif
             if (start < end) {
                 const int pivot = divide(a, b, c, d, start, end);
+#if(SENSOR_LEVEL_PARALLELISM != 0)
                 #pragma omp task
+#endif
                     quicksort(a, b, c, d, start, pivot - 1);
+#if(SENSOR_LEVEL_PARALLELISM != 0)
                 #pragma omp task
+#endif
                     quicksort(a, b, c, d, pivot + 1, end);
             }
+#if(SENSOR_LEVEL_PARALLELISM != 0)
         }
     }
+#endif
 }
 
 int divide (float* a, float* b, float* c, unsigned int* d, int start, int end) {
