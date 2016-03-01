@@ -3,12 +3,14 @@
 #include "PixelSearchByTriplet.h"
 #include "SerialKernel.h"
 
+
 // extern int*   h_no_sensors;
 // extern int*   h_no_hits;
 // extern int*   h_sensor_Zs;
 // extern unsigned int* h_hit_IDs;
 
 #ifdef TIMING_ENABLED
+#include <omp.h>
 #include <cstdint>
 struct Timing {
     uint32_t cycles_low, cycles_high;
@@ -204,17 +206,27 @@ int cpuPixelSearchByTripletOpenMPRun(
     // std::vector<Event> events;
     std::vector<Track>* event_tracks[input.size()];
     Event* events[input.size()];
+    double runtime;
 
     // event_tracks.reserve(input.size());
     // events.reserve(input.size());
 
+#if(EVENT_LEVEL_PARALLELISM != 0)
     #pragma omp parallel shared(event_tracks, events, input) num_threads(EVENT_LEVEL_PARALLELISM)
     {
+#endif
 #ifdef TIMING_ENABLED
+#if(EVENT_LEVEL_PARALLELISM != 0)
     #pragma omp single
+#endif
+    {
+    runtime = -omp_get_wtime();
     timing.start();
-    #endif
+    }
+#endif // TIMING_ENABLED
+#if(EVENT_LEVEL_PARALLELISM != 0)
         #pragma omp for schedule(dynamic,1)
+#endif
         for (unsigned int input_index = 0; input_index < input.size(); ++input_index) {
             DEBUG << "Processing data frame " << input_index << std::endl;
 
@@ -229,13 +241,20 @@ int cpuPixelSearchByTripletOpenMPRun(
             event_tracks[input_index] = new std::vector<Track>(std::move(tracks));
         }
 #ifdef  TIMING_ENABLED
+#if(EVENT_LEVEL_PARALLELISM != 0)
     #pragma omp single
-    timing.stop();
 #endif
+    {
+    runtime += omp_get_wtime();
+    timing.stop();
     }
+#endif
+#if(EVENT_LEVEL_PARALLELISM != 0)
+    } // omp parallel
+#endif
 #ifdef TIMING_ENABLED
     #include <iostream>
-    std::cout << "%%% TIME: " << timing.cycles << " cycles." << std::endl;
+    std::cout << "%%% TIME: " << runtime << " seconds, "<< timing.cycles << " cycles." << std::endl;
 #endif
     for(size_t output_idx=0; output_idx<input.size(); ++output_idx) { 
         // Print to output file with event no.
